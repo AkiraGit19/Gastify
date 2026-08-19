@@ -7,12 +7,21 @@ import { Dashboard } from "./pages/Dashboard";
 import { Gastos } from "./pages/Gastos";
 import { Aprobaciones } from "./pages/Aprobaciones";
 import { Equipo } from "./pages/Equipo";
-import { Empresas } from "./pages/Empresas";
+import { SuperAdminHome } from "./pages/SuperAdminHome";
 
 function ProtectedLayout() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   return <Layout />;
+}
+
+// Every role has a different "front page": the platform owner manages companies,
+// an aprobador's job starts and ends at the approval queue, everyone else gets the spend summary.
+function Home() {
+  const { user } = useAuth();
+  if (user?.rol === "super_admin") return <SuperAdminHome />;
+  if (user?.rol === "aprobador") return <Navigate to="/aprobaciones" replace />;
+  return <Dashboard />;
 }
 
 export default function App() {
@@ -23,11 +32,10 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/auth/verify" element={<VerifyMagicLink />} />
           <Route element={<ProtectedLayout />}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<Home />} />
             <Route path="/gastos" element={<Gastos />} />
             <Route path="/aprobaciones" element={<Aprobaciones />} />
             <Route path="/equipo" element={<Equipo />} />
-            <Route path="/empresas" element={<Empresas />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

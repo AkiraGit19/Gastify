@@ -7,16 +7,30 @@ interface NavItem {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
-  roles: Rol[];
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "aprobador", "empleado"] },
-  { to: "/gastos", label: "Gastos", icon: Receipt, roles: ["admin", "empleado"] },
-  { to: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare, roles: ["admin", "aprobador"] },
-  { to: "/equipo", label: "Equipo", icon: Users, roles: ["admin"] },
-  { to: "/empresas", label: "Empresas", icon: Building2, roles: ["super_admin"] },
-];
+// Each role's landing page is different (see Home in App.tsx), so the nav itself is built per role
+// rather than filtered from one shared list — a super_admin's "/" is not the same page as an admin's.
+function navFor(rol: Rol): NavItem[] {
+  switch (rol) {
+    case "super_admin":
+      return [{ to: "/", label: "Empresas", icon: Building2 }];
+    case "admin":
+      return [
+        { to: "/", label: "Dashboard", icon: LayoutDashboard },
+        { to: "/gastos", label: "Gastos", icon: Receipt },
+        { to: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare },
+        { to: "/equipo", label: "Equipo", icon: Users },
+      ];
+    case "aprobador":
+      return [{ to: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare }];
+    case "empleado":
+      return [
+        { to: "/", label: "Dashboard", icon: LayoutDashboard },
+        { to: "/gastos", label: "Mis gastos", icon: Receipt },
+      ];
+  }
+}
 
 const ROL_LABEL: Record<Rol, string> = {
   super_admin: "Dueño de plataforma",
@@ -30,7 +44,7 @@ export function Layout() {
   const location = useLocation();
   if (!user) return null;
 
-  const items = NAV_ITEMS.filter((item) => item.roles.includes(user.rol));
+  const items = navFor(user.rol);
   const current = items.find((item) => (item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)));
 
   return (
@@ -75,7 +89,7 @@ export function Layout() {
           <div className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted">
             <span>{ROL_LABEL[user.rol]}</span>
             <ChevronRight size={12} />
-            <span className="text-ink">{current?.label ?? "Dashboard"}</span>
+            <span className="text-ink">{current?.label ?? items[0]?.label}</span>
           </div>
           <div className="flex items-center gap-2.5">
             <span className="text-sm font-medium text-ink">{user.nombre}</span>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import type { Gasto } from "../lib/types";
 import { CATEGORIA_LABEL } from "../lib/types";
 import { ReceiptThumb } from "../components/ReceiptThumb";
@@ -8,6 +8,7 @@ import { StatusPill } from "../components/StatusPill";
 
 export function Aprobaciones() {
   const [gastos, setGastos] = useState<Gasto[] | null>(null);
+  const [error, setError] = useState("");
 
   function load() {
     // Include pendiente_validacion too: SUNAT being unreachable must never block a human decision
@@ -20,8 +21,13 @@ export function Aprobaciones() {
   useEffect(load, []);
 
   async function decide(id: string, decision: boolean) {
-    await api.post(`/gastos/${id}/decision`, { decision });
-    load();
+    setError("");
+    try {
+      await api.post(`/gastos/${id}/decision`, { decision });
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo registrar la decisión");
+    }
   }
 
   return (
@@ -30,6 +36,8 @@ export function Aprobaciones() {
         <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Aprobaciones pendientes</h1>
         <p className="text-sm text-muted">Revisa y decide sobre los gastos de tu equipo.</p>
       </div>
+
+      {error && <p className="text-sm text-stamp-rechazado">{error}</p>}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {gastos?.map((g) => (

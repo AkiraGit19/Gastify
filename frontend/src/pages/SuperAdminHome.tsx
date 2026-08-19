@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Building2, PlusCircle } from "lucide-react";
+import { Building2, Users, Receipt, PlusCircle } from "lucide-react";
 import { api, ApiError } from "../lib/api";
+import { StatCard } from "../components/StatCard";
+import { CountUp } from "../components/CountUp";
 
 interface Empresa {
   id: string;
@@ -10,7 +12,7 @@ interface Empresa {
   _count: { usuarios: number; gastos: number };
 }
 
-export function Empresas() {
+export function SuperAdminHome() {
   const [empresas, setEmpresas] = useState<Empresa[] | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
@@ -42,13 +44,24 @@ export function Empresas() {
     }
   }
 
+  const totalUsuarios = empresas?.reduce((sum, e) => sum + e._count.usuarios, 0) ?? 0;
+  const totalGastos = empresas?.reduce((sum, e) => sum + e._count.gastos, 0) ?? 0;
+
   return (
     <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Panel de plataforma</h1>
+        <p className="text-sm text-muted">Todas las empresas que usan Gastify, cada una con sus datos separados.</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard icon={Building2} label="Empresas" value={<CountUp value={empresas?.length ?? 0} />} sublabel="clientes activos" />
+        <StatCard icon={Users} label="Usuarios" value={<CountUp value={totalUsuarios} />} sublabel="en toda la plataforma" />
+        <StatCard icon={Receipt} label="Gastos" value={<CountUp value={totalGastos} />} sublabel="registrados en total" />
+      </div>
+
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Empresas</h1>
-          <p className="text-sm text-muted">Clientes de la plataforma. Cada uno con sus datos completamente separados.</p>
-        </div>
+        <h2 className="font-display text-sm font-semibold uppercase tracking-widest text-muted">Empresas</h2>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="flex items-center gap-2 rounded-md bg-rail px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
@@ -83,6 +96,7 @@ export function Empresas() {
             <p className="mt-3 font-mono text-xs text-muted">{e._count.usuarios} usuarios · {e._count.gastos} gastos</p>
           </div>
         ))}
+        {empresas?.length === 0 && <p className="text-sm text-muted">Todavía no has dado de alta ninguna empresa.</p>}
       </div>
     </div>
   );

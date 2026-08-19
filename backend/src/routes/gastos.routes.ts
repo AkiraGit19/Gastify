@@ -16,12 +16,13 @@ const listQuerySchema = z.object({
   hasta: z.string().optional(),
 });
 
-// Employees only ever see their own gastos; admins/aprobadores see the whole empresa.
-// empresaId always comes from the session, never from the client.
+// Employees only ever see their own gastos; aprobadores see only the people who report to them;
+// admins see the whole empresa. empresaId always comes from the session, never from the client.
 function scopedWhere(user: NonNullable<Express.Request["user"]>, query: z.infer<typeof listQuerySchema>) {
   const where: Record<string, unknown> = { empresaId: user.empresaId! };
   if (user.rol === "empleado") where.usuarioId = user.id;
-  if (query.usuarioId && user.rol !== "empleado") where.usuarioId = query.usuarioId;
+  if (user.rol === "aprobador") where.usuario = { aprobadorId: user.id };
+  if (query.usuarioId && user.rol === "admin") where.usuarioId = query.usuarioId;
   if (query.estado) where.estado = query.estado;
   if (query.categoria) where.categoria = query.categoria;
   if (query.desde || query.hasta) {

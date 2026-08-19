@@ -6,32 +6,8 @@ import { CATEGORIA_LABEL } from "../lib/types";
 import { CountUp } from "../components/CountUp";
 import { ReceiptRow } from "../components/ReceiptRow";
 import { CategoryBarChart } from "../components/CategoryBarChart";
+import { StatCard } from "../components/StatCard";
 import { useAuth } from "../lib/auth";
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  sublabel,
-}: {
-  icon: typeof Clock;
-  label: string;
-  value: React.ReactNode;
-  sublabel: string;
-}) {
-  return (
-    <div className="receipt-card flex items-start justify-between p-5">
-      <div>
-        <p className="mb-2 text-xs text-muted">{label}</p>
-        <p className="font-mono text-2xl font-semibold text-ink">{value}</p>
-        <p className="mt-1 text-xs text-muted">{sublabel}</p>
-      </div>
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
-        <Icon size={17} strokeWidth={2} />
-      </div>
-    </div>
-  );
-}
 
 export function Dashboard() {
   const { user } = useAuth();
