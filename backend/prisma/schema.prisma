@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  super_admin
+  admin
+  aprobador
+  empleado
+}
+
+enum EstadoGasto {
+  pendiente
+  aprobado
+  rechazado
+  pendiente_validacion
+}
+
+enum Categoria {
+  movilidad
+  alimentacion
+  hospedaje
+  otros
+}
+
+model Empresa {
+  id          String   @id @default(cuid())
+  razonSocial String
+  ruc         String   @unique
+  fechaAlta   DateTime @default(now())
+
+  usuarios Usuario[]
+  gastos   Gasto[]
+}
+
+model Usuario {
+  id               String  @id @default(cuid())
+  empresaId        String?
+  empresa          Empresa? @relation(fields: [empresaId], references: [id])
+  nombre           String
+  telefonoWhatsapp String? @unique
+  email            String  @unique
+  rol              Rol
+  activo           Boolean @default(true)
+  aprobadorId      String?
+  aprobador        Usuario?  @relation("ReportaA", fields: [aprobadorId], references: [id])
+  reportes         Usuario[] @relation("ReportaA")
+
+  gastos       Gasto[]
+  aprobaciones Aprobacion[]
+  magicLinks   MagicLink[]
+
+  @@index([empresaId])
+}
+
+model Gasto {
+  id                  String      @id @default(cuid())
+  empresaId           String
+  empresa             Empresa     @relation(fields: [empresaId], references: [id])
+  usuarioId           String
+  usuario             Usuario     @relation(fields: [usuarioId], references: [id])
+  monto               Decimal     @db.Decimal(10, 2)
+  fechaGasto           DateTime
+  categoria           Categoria
+  rucEmisor           String?
+  razonSocialEmisor   String?
+  numeroComprobante   String?
+  imagenUrl           String
+  estado              EstadoGasto @default(pendiente)
+  validadoSunat       Boolean     @default(false)
+  fechaCreacion       DateTime    @default(now())
+
+  aprobaciones Aprobacion[]
+
+  @@unique([rucEmisor, numeroComprobante])
+  @@index([empresaId])
+  @@index([usuarioId])
+}
+
+model Aprobacion {
+  id            String    @id @default(cuid())
+  gastoId       String
+  gasto         Gasto     @relation(fields: [gastoId], references: [id])
+  aprobadorId   String
+  aprobador     Usuario   @relation(fields: [aprobadorId], references: [id])
+  decision      Boolean
+  fechaDecision DateTime  @default(now())
+  comentario    String?
+}
+
+model MagicLink {
+  id        String   @id @default(cuid())
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  token     String   @unique
+  expiraEn  DateTime
+  usado     Boolean  @default(false)
+}
+
+// Short-lived scratch space for the WhatsApp conversation state machine —
+// what the bot is waiting for next from this phone number (confirm / correct a field / pick category).
+model ConversacionWA {
+  id            String   @id @default(cuid())
+  usuarioId     String   @unique
+  paso          String
+  datos         Json
+  actualizadoEn DateTime @updatedAt
+}
