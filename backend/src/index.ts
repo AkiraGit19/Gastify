@@ -10,7 +10,14 @@ import { whatsappRouter } from "./routes/whatsapp.routes.js";
 const app = express();
 
 app.use(cors({ origin: process.env.FRONTEND_URL ?? "http://localhost:5173" }));
-app.use(express.json());
+app.use(
+  express.json({
+    // Keep the raw bytes so the WhatsApp webhook can verify Meta's HMAC signature over the exact payload.
+    verify: (req, _res, buf) => {
+      (req as express.Request & { rawBody: Buffer }).rawBody = buf;
+    },
+  }),
+);
 app.use("/uploads", express.static(new URL("../uploads", import.meta.url).pathname));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));

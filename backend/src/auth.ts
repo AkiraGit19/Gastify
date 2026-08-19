@@ -4,7 +4,14 @@ import type { Request, Response, NextFunction } from "express";
 import { db } from "./db.js";
 import type { Rol } from "@prisma/client";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret-change-in-production";
+// A hardcoded fallback here would mean anyone reading this public repo could forge a super_admin JWT.
+function requireJwtSecret(): string {
+  const value = process.env.JWT_SECRET;
+  if (!value) throw new Error("JWT_SECRET no está configurado. Defínelo como variable de entorno antes de arrancar el servidor.");
+  return value;
+}
+
+const JWT_SECRET = requireJwtSecret();
 const MAGIC_LINK_TTL_MINUTES = 15;
 
 export interface SessionUser {

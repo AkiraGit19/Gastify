@@ -12,13 +12,13 @@ authRouter.post("/magic-link", async (req, res) => {
   const parsed = requestSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Email inválido" });
 
+  // Always respond the same way whether or not the email is registered — otherwise this endpoint
+  // becomes a free way to enumerate every employee's email address at a company.
   const usuario = await db.usuario.findUnique({ where: { email: parsed.data.email } });
-  if (!usuario || !usuario.activo) {
-    return res.status(404).json({ error: "No hay ninguna cuenta activa con ese email" });
+  if (usuario?.activo) {
+    const token = await createMagicLink(usuario.id);
+    await sendMagicLinkEmail(usuario.email, token);
   }
-
-  const token = await createMagicLink(usuario.id);
-  await sendMagicLinkEmail(usuario.email, token);
   res.json({ ok: true });
 });
 
