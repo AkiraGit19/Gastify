@@ -20,6 +20,17 @@ export function Dashboard() {
   const aprobados = gastos.filter((g) => g.estado === "aprobado");
   const totalPendiente = pendientes.reduce((sum, g) => sum + Number(g.monto), 0);
 
+  const porCategoria = (Object.keys(CATEGORIA_LABEL) as (keyof typeof CATEGORIA_LABEL)[]).map((cat) => ({
+    categoria: cat,
+    total: gastos.filter((g) => g.categoria === cat).reduce((sum, g) => sum + Number(g.monto), 0),
+  }));
+  const CATEGORIA_DOT: Record<string, string> = {
+    movilidad: "bg-brand",
+    alimentacion: "bg-stamp-aprobado",
+    hospedaje: "bg-stamp-pendiente",
+    otros: "bg-ink/40",
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -54,6 +65,18 @@ export function Dashboard() {
             <p className="text-xs text-muted">Total registrados</p>
           </div>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {porCategoria.map(({ categoria, total }) => (
+          <div key={categoria} className="receipt-card px-4 py-3">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <span className={`h-1.5 w-1.5 rounded-full ${CATEGORIA_DOT[categoria]}`} />
+              <span className="text-xs text-muted">{CATEGORIA_LABEL[categoria]}</span>
+            </div>
+            <p className="font-mono text-lg font-semibold text-ink">S/ {total.toFixed(2)}</p>
+          </div>
+        ))}
       </div>
 
       <div>

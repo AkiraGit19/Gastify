@@ -1,6 +1,7 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Receipt, CheckSquare, Users, Building2, LogOut, ScrollText } from "lucide-react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { LayoutDashboard, Receipt, CheckSquare, Users, Building2, LogOut, ChevronRight } from "lucide-react";
 import { useAuth, type Rol } from "../lib/auth";
+import { Logo } from "./Logo";
 
 interface NavItem {
   to: string;
@@ -17,19 +18,26 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/empresas", label: "Empresas", icon: Building2, roles: ["super_admin"] },
 ];
 
+const ROL_LABEL: Record<Rol, string> = {
+  super_admin: "Dueño de plataforma",
+  admin: "Administrador",
+  aprobador: "Aprobador",
+  empleado: "Rendidor",
+};
+
 export function Layout() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   if (!user) return null;
 
   const items = NAV_ITEMS.filter((item) => item.roles.includes(user.rol));
+  const current = items.find((item) => (item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)));
 
   return (
     <div className="flex min-h-screen">
       <aside className="flex w-60 shrink-0 flex-col bg-rail p-4">
         <div className="mb-10 flex items-center gap-2 px-2 pt-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-brand text-rail">
-            <ScrollText size={18} strokeWidth={2.25} />
-          </div>
+          <Logo size={30} />
           <span className="font-display text-lg font-semibold tracking-tight text-white">Gastify</span>
         </div>
 
@@ -63,13 +71,17 @@ export function Layout() {
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-ink/8 px-8 py-4">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-muted">Hola</p>
-            <p className="font-display font-semibold text-ink">{user.nombre}</p>
+        <header className="flex items-center justify-between border-b border-ink/8 px-8 py-3.5">
+          <div className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted">
+            <span>{ROL_LABEL[user.rol]}</span>
+            <ChevronRight size={12} />
+            <span className="text-ink">{current?.label ?? "Dashboard"}</span>
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rail text-sm font-semibold text-white">
-            {user.nombre.charAt(0).toUpperCase()}
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-medium text-ink">{user.nombre}</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rail text-xs font-semibold text-white">
+              {user.nombre.charAt(0).toUpperCase()}
+            </div>
           </div>
         </header>
 

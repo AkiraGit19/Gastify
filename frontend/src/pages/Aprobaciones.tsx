@@ -4,12 +4,17 @@ import { api } from "../lib/api";
 import type { Gasto } from "../lib/types";
 import { CATEGORIA_LABEL } from "../lib/types";
 import { ReceiptThumb } from "../components/ReceiptThumb";
+import { StatusPill } from "../components/StatusPill";
 
 export function Aprobaciones() {
   const [gastos, setGastos] = useState<Gasto[] | null>(null);
 
   function load() {
-    api.get<Gasto[]>("/gastos?estado=pendiente").then(setGastos);
+    // Include pendiente_validacion too: SUNAT being unreachable must never block a human decision
+    // (spec section 4.3) — without this, a gasto that never validates could never be approved.
+    api.get<Gasto[]>("/gastos").then((all) =>
+      setGastos(all.filter((g) => g.estado === "pendiente" || g.estado === "pendiente_validacion")),
+    );
   }
 
   useEffect(load, []);
@@ -35,6 +40,7 @@ export function Aprobaciones() {
                 <p className="truncate text-sm font-medium text-ink">{g.razonSocialEmisor ?? "Proveedor sin confirmar"}</p>
                 <p className="truncate text-xs text-muted">{g.usuario.nombre}</p>
               </div>
+              {g.estado === "pendiente_validacion" && <StatusPill estado={g.estado} />}
             </div>
             <div className="flex items-center justify-between border-t border-dashed border-ink/15 pt-3 text-sm">
               <span className="text-muted">{CATEGORIA_LABEL[g.categoria]}</span>

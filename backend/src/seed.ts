@@ -18,7 +18,7 @@ async function main() {
   });
 
   const admin = await db.usuario.create({
-    data: { empresaId: acme.id, nombre: "Ana Ríos", email: "admin@acme.test", rol: "admin", telefonoWhatsapp: "51900000001" },
+    data: { empresaId: acme.id, nombre: "Akira Sánchez", email: "akirasan.office@gmail.com", rol: "admin", telefonoWhatsapp: "51900000001" },
   });
 
   const aprobador = await db.usuario.create({

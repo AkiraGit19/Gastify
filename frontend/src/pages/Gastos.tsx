@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, CalendarClock, Tag, ChevronDown, X } from "lucide-react";
 import { api, apiUrl } from "../lib/api";
 import type { Gasto } from "../lib/types";
 import { CATEGORIA_LABEL } from "../lib/types";
@@ -7,6 +7,43 @@ import { ReceiptRow } from "../components/ReceiptRow";
 import { useAuth } from "../lib/auth";
 
 const ESTADOS = ["pendiente", "pendiente_validacion", "aprobado", "rechazado"] as const;
+const ESTADO_LABEL: Record<string, string> = {
+  pendiente: "Pendiente",
+  pendiente_validacion: "Validando",
+  aprobado: "Aprobado",
+  rechazado: "Rechazado",
+};
+
+function FilterChip({
+  icon: Icon,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  icon: typeof Tag;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder: string;
+}) {
+  return (
+    <div className="relative flex items-center rounded-full border border-ink/15 bg-surface pl-3 pr-7 text-xs">
+      <Icon size={13} className="mr-1.5 shrink-0 text-muted" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="appearance-none bg-transparent py-2 font-mono uppercase tracking-wide text-ink outline-none"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <ChevronDown size={12} className="pointer-events-none absolute right-2.5 text-muted" />
+    </div>
+  );
+}
 
 export function Gastos() {
   const { user } = useAuth();
@@ -22,6 +59,7 @@ export function Gastos() {
   }, [estado, categoria]);
 
   const token = localStorage.getItem("gastify_token") ?? "";
+  const hasFilters = Boolean(estado || categoria);
 
   async function exportCsv() {
     const qs = new URLSearchParams({ ...(estado ? { estado } : {}), ...(categoria ? { categoria } : {}) });
@@ -54,27 +92,32 @@ export function Gastos() {
         )}
       </div>
 
-      <div className="flex gap-3">
-        <select
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterChip
+          icon={CalendarClock}
           value={estado}
-          onChange={(e) => setEstado(e.target.value)}
-          className="rounded-md border border-ink/12 bg-surface px-3 py-2 font-mono text-xs text-ink"
-        >
-          <option value="">Todos los estados</option>
-          {ESTADOS.map((e) => (
-            <option key={e} value={e}>{e}</option>
-          ))}
-        </select>
-        <select
+          onChange={setEstado}
+          placeholder="Todos los estados"
+          options={ESTADOS.map((e) => ({ value: e, label: ESTADO_LABEL[e] }))}
+        />
+        <FilterChip
+          icon={Tag}
           value={categoria}
-          onChange={(e) => setCategoria(e.target.value)}
-          className="rounded-md border border-ink/12 bg-surface px-3 py-2 font-mono text-xs text-ink"
-        >
-          <option value="">Todas las categorías</option>
-          {Object.entries(CATEGORIA_LABEL).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
+          onChange={setCategoria}
+          placeholder="Todas las categorías"
+          options={Object.entries(CATEGORIA_LABEL).map(([value, label]) => ({ value, label }))}
+        />
+        {hasFilters && (
+          <button
+            onClick={() => {
+              setEstado("");
+              setCategoria("");
+            }}
+            className="flex items-center gap-1 rounded-full px-3 py-2 font-mono text-xs uppercase tracking-wide text-muted hover:text-ink"
+          >
+            <X size={12} /> Limpiar
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-3">

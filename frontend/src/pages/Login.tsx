@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { Mail, ScrollText } from "lucide-react";
+import { Mail } from "lucide-react";
 import { api, ApiError } from "../lib/api";
+import { Logo } from "../components/Logo";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -23,9 +24,7 @@ export function Login() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="receipt-card w-full max-w-sm p-8">
         <div className="mb-6 flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-rail text-brand">
-            <ScrollText size={20} strokeWidth={2.25} />
-          </div>
+          <Logo size={32} />
           <span className="font-display text-xl font-semibold tracking-tight text-ink">Gastify</span>
         </div>
 
