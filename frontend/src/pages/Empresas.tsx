@@ -46,27 +46,27 @@ export function Empresas() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-ink">Empresas</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Empresas</h1>
           <p className="text-sm text-muted">Clientes de la plataforma. Cada uno con sus datos completamente separados.</p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+          className="flex items-center gap-2 rounded-md bg-rail px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
         >
           <PlusCircle size={16} /> Nueva empresa
         </button>
       </div>
 
-      {success && <p className="rounded-lg bg-success-soft p-3 text-sm text-success">{success}</p>}
+      {success && <p className="border-l-2 border-stamp-aprobado bg-brand-soft/40 p-3 text-sm text-ink">{success}</p>}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 rounded-2xl bg-surface p-6 shadow-sm shadow-ink/5 sm:grid-cols-2">
-          <input name="razonSocial" required placeholder="Razón social" className="rounded-lg border border-brand-soft bg-page px-3 py-2 text-sm" />
-          <input name="ruc" required placeholder="RUC" className="rounded-lg border border-brand-soft bg-page px-3 py-2 text-sm" />
-          <input name="adminNombre" required placeholder="Nombre del admin" className="rounded-lg border border-brand-soft bg-page px-3 py-2 text-sm" />
-          <input name="adminEmail" type="email" required placeholder="Email del admin" className="rounded-lg border border-brand-soft bg-page px-3 py-2 text-sm" />
-          {error && <p className="text-sm text-danger sm:col-span-2">{error}</p>}
-          <button type="submit" className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white sm:col-span-2">
+        <form onSubmit={handleSubmit} className="receipt-card grid grid-cols-1 gap-3 p-6 sm:grid-cols-2">
+          <input name="razonSocial" required placeholder="Razón social" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
+          <input name="ruc" required placeholder="RUC" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
+          <input name="adminNombre" required placeholder="Nombre del admin" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
+          <input name="adminEmail" type="email" required placeholder="Email del admin" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
+          {error && <p className="text-sm text-stamp-rechazado sm:col-span-2">{error}</p>}
+          <button type="submit" className="rounded-md bg-rail px-4 py-2 text-sm font-semibold text-white sm:col-span-2">
             Crear empresa
           </button>
         </form>
@@ -74,13 +74,13 @@ export function Empresas() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {empresas?.map((e) => (
-          <div key={e.id} className="rounded-2xl bg-surface p-5 shadow-sm shadow-ink/5">
-            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand">
+          <div key={e.id} className="receipt-card p-5">
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md bg-rail text-brand">
               <Building2 size={18} />
             </div>
             <p className="font-medium text-ink">{e.razonSocial}</p>
-            <p className="text-xs text-muted">RUC {e.ruc}</p>
-            <p className="mt-3 text-xs text-muted">{e._count.usuarios} usuarios · {e._count.gastos} gastos</p>
+            <p className="font-mono text-xs text-muted">RUC {e.ruc}</p>
+            <p className="mt-3 font-mono text-xs text-muted">{e._count.usuarios} usuarios · {e._count.gastos} gastos</p>
           </div>
         ))}
       </div>

@@ -44,57 +44,55 @@ export function Equipo() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-ink">Equipo</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Equipo</h1>
           <p className="text-sm text-muted">Empleados y aprobadores de tu empresa.</p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+          className="flex items-center gap-2 rounded-md bg-rail px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
         >
           <UserPlus size={16} /> Nuevo miembro
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 rounded-2xl bg-surface p-6 shadow-sm shadow-ink/5 sm:grid-cols-2">
-          <input name="nombre" required placeholder="Nombre completo" className="rounded-lg border border-brand-soft bg-page px-3 py-2 text-sm" />
-          <input name="email" type="email" required placeholder="Correo" className="rounded-lg border border-brand-soft bg-page px-3 py-2 text-sm" />
-          <input name="telefonoWhatsapp" required placeholder="Teléfono WhatsApp (51999...)" className="rounded-lg border border-brand-soft bg-page px-3 py-2 text-sm" />
-          <select name="rol" className="rounded-lg border border-brand-soft bg-page px-3 py-2 text-sm">
+        <form onSubmit={handleSubmit} className="receipt-card grid grid-cols-1 gap-3 p-6 sm:grid-cols-2">
+          <input name="nombre" required placeholder="Nombre completo" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
+          <input name="email" type="email" required placeholder="Correo" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
+          <input name="telefonoWhatsapp" required placeholder="Teléfono WhatsApp (51999...)" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
+          <select name="rol" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm">
             <option value="empleado">Empleado</option>
             <option value="aprobador">Aprobador</option>
           </select>
-          <select name="aprobadorId" className="rounded-lg border border-brand-soft bg-page px-3 py-2 text-sm sm:col-span-2">
+          <select name="aprobadorId" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm sm:col-span-2">
             <option value="">Sin aprobador asignado</option>
             {aprobadores.map((a) => (
               <option key={a.id} value={a.id}>{a.nombre}</option>
             ))}
           </select>
-          {error && <p className="text-sm text-danger sm:col-span-2">{error}</p>}
-          <button type="submit" className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white sm:col-span-2">
+          {error && <p className="text-sm text-stamp-rechazado sm:col-span-2">{error}</p>}
+          <button type="submit" className="rounded-md bg-rail px-4 py-2 text-sm font-semibold text-white sm:col-span-2">
             Crear
           </button>
         </form>
       )}
 
-      <div className="rounded-2xl bg-surface shadow-sm shadow-ink/5">
-        <div className="flex flex-col divide-y divide-page px-6">
-          {usuarios?.map((u) => (
-            <div key={u.id} className="flex items-center gap-4 py-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-ink">{u.nombre}</p>
-                <p className="text-xs text-muted">{u.email} · {u.telefonoWhatsapp}</p>
-              </div>
-              <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-medium text-brand capitalize">{u.rol}</span>
-              <button
-                onClick={() => toggleActivo(u)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${u.activo ? "bg-danger-soft text-danger" : "bg-success-soft text-success"}`}
-              >
-                {u.activo ? "Dar de baja" : "Reactivar"}
-              </button>
+      <div className="flex flex-col gap-3">
+        {usuarios?.map((u) => (
+          <div key={u.id} className="receipt-card flex items-center gap-4 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-ink">{u.nombre}</p>
+              <p className="font-mono text-xs text-muted">{u.email} · {u.telefonoWhatsapp}</p>
             </div>
-          ))}
-        </div>
+            <span className="stamp text-brand">{u.rol}</span>
+            <button
+              onClick={() => toggleActivo(u)}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold ${u.activo ? "text-stamp-rechazado" : "text-stamp-aprobado"}`}
+            >
+              {u.activo ? "Dar de baja" : "Reactivar"}
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

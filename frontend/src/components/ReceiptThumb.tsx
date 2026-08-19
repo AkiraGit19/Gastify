@@ -1,6 +1,6 @@
 export function ReceiptThumb({ url, scanning = false }: { url: string; scanning?: boolean }) {
   return (
-    <div className="relative h-12 w-10 shrink-0 overflow-hidden rounded-md border border-brand-soft bg-page">
+    <div className="relative h-12 w-10 shrink-0 overflow-hidden rounded-sm border border-ink/10 bg-page">
       <img src={url} alt="Boleta" className="h-full w-full object-cover" />
       {scanning && (
         <div className="pointer-events-none absolute inset-0 overflow-hidden">

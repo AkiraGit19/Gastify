@@ -26,11 +26,11 @@ export function VerifyMagicLink() {
   }, [params, login, navigate]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-page px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-surface p-8 text-center shadow-sm shadow-ink/5">
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="receipt-card w-full max-w-sm p-8 text-center">
         {error ? (
           <>
-            <p className="mb-4 text-sm text-danger">{error}</p>
+            <p className="mb-4 text-sm text-stamp-rechazado">{error}</p>
             <a href="/login" className="text-sm font-medium text-brand">Volver a pedir un enlace</a>
           </>
         ) : (

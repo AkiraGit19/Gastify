@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Receipt, CheckSquare, Users, Building2, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, Receipt, CheckSquare, Users, Building2, LogOut, ScrollText } from "lucide-react";
 import { useAuth, type Rol } from "../lib/auth";
 
 interface NavItem {
@@ -24,28 +24,30 @@ export function Layout() {
   const items = NAV_ITEMS.filter((item) => item.roles.includes(user.rol));
 
   return (
-    <div className="flex min-h-screen bg-page">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-brand-soft bg-surface p-4">
-        <div className="mb-8 flex items-center gap-2 px-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-white">
-            <Wallet size={18} />
+    <div className="flex min-h-screen">
+      <aside className="flex w-60 shrink-0 flex-col bg-rail p-4">
+        <div className="mb-10 flex items-center gap-2 px-2 pt-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-brand text-rail">
+            <ScrollText size={18} strokeWidth={2.25} />
           </div>
-          <span className="text-lg font-semibold text-ink">Gastify</span>
+          <span className="font-display text-lg font-semibold tracking-tight text-white">Gastify</span>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1">
+        <nav className="flex flex-1 flex-col gap-0.5">
           {items.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end={to === "/"}
               className={({ isActive }: { isActive: boolean }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive ? "bg-brand-soft text-brand" : "text-muted hover:bg-page hover:text-ink"
+                `flex items-center gap-3 border-l-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                  isActive
+                    ? "border-brand bg-white/5 text-white"
+                    : "border-transparent text-white/50 hover:border-white/20 hover:text-white/80"
                 }`
               }
             >
-              <Icon size={18} />
+              <Icon size={17} strokeWidth={2} />
               {label}
             </NavLink>
           ))}
@@ -53,20 +55,20 @@ export function Layout() {
 
         <button
           onClick={logout}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-page hover:text-danger"
+          className="flex items-center gap-3 border-l-2 border-transparent px-3 py-2.5 text-sm font-medium text-white/40 transition-colors hover:text-white/70"
         >
-          <LogOut size={18} />
+          <LogOut size={17} strokeWidth={2} />
           Cerrar sesión
         </button>
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-brand-soft bg-surface px-8 py-4">
+        <header className="flex items-center justify-between border-b border-ink/8 px-8 py-4">
           <div>
-            <p className="text-sm text-muted">Hola,</p>
-            <p className="font-semibold text-ink">{user.nombre}</p>
+            <p className="text-xs uppercase tracking-wider text-muted">Hola</p>
+            <p className="font-display font-semibold text-ink">{user.nombre}</p>
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rail text-sm font-semibold text-white">
             {user.nombre.charAt(0).toUpperCase()}
           </div>
         </header>

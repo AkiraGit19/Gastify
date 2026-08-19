@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Mail, Wallet } from "lucide-react";
+import { Mail, ScrollText } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 
 export function Login() {
@@ -20,24 +20,24 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-page px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-surface p-8 shadow-sm shadow-ink/5">
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="receipt-card w-full max-w-sm p-8">
         <div className="mb-6 flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white">
-            <Wallet size={20} />
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-rail text-brand">
+            <ScrollText size={20} strokeWidth={2.25} />
           </div>
-          <span className="text-xl font-semibold text-ink">Gastify</span>
+          <span className="font-display text-xl font-semibold tracking-tight text-ink">Gastify</span>
         </div>
 
         {status === "sent" ? (
-          <div className="rounded-lg bg-success-soft p-4 text-sm text-success">
-            Te enviamos un enlace de acceso a <strong>{email}</strong>. Revisa tu correo y haz clic para entrar.
+          <div className="border-l-2 border-stamp-aprobado bg-brand-soft/40 p-4 text-sm text-ink">
+            Si <strong>{email}</strong> está registrado, te enviamos un enlace de acceso. Revisa tu correo.
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-ink">Correo electrónico</label>
-              <div className="flex items-center gap-2 rounded-lg border border-brand-soft bg-page px-3 py-2.5 focus-within:border-brand">
+              <div className="flex items-center gap-2 rounded-md border border-ink/12 bg-page px-3 py-2.5 focus-within:border-brand">
                 <Mail size={16} className="text-muted" />
                 <input
                   type="email"
@@ -50,12 +50,12 @@ export function Login() {
               </div>
             </div>
 
-            {status === "error" && <p className="text-sm text-danger">{error}</p>}
+            {status === "error" && <p className="text-sm text-stamp-rechazado">{error}</p>}
 
             <button
               type="submit"
               disabled={status === "loading"}
-              className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
+              className="rounded-md bg-rail px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
             >
               {status === "loading" ? "Enviando..." : "Enviarme un enlace de acceso"}
             </button>
