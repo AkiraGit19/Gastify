@@ -35,10 +35,10 @@ export function Layout() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col bg-rail p-4">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-ink/8 bg-surface p-4">
         <div className="mb-10 flex items-center gap-2 px-2 pt-2">
           <Logo size={30} />
-          <span className="font-display text-lg font-semibold tracking-tight text-white">Gastify</span>
+          <span className="font-display text-lg font-semibold tracking-tight text-ink">Gastify</span>
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5">
@@ -48,10 +48,10 @@ export function Layout() {
               to={to}
               end={to === "/"}
               className={({ isActive }: { isActive: boolean }) =>
-                `flex items-center gap-3 border-l-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive
-                    ? "border-brand bg-white/5 text-white"
-                    : "border-transparent text-white/50 hover:border-white/20 hover:text-white/80"
+                    ? "bg-brand-soft text-brand"
+                    : "text-muted hover:bg-page hover:text-ink"
                 }`
               }
             >
@@ -63,7 +63,7 @@ export function Layout() {
 
         <button
           onClick={logout}
-          className="flex items-center gap-3 border-l-2 border-transparent px-3 py-2.5 text-sm font-medium text-white/40 transition-colors hover:text-white/70"
+          className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-page hover:text-ink"
         >
           <LogOut size={17} strokeWidth={2} />
           Cerrar sesión
@@ -71,7 +71,7 @@ export function Layout() {
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-ink/8 px-8 py-3.5">
+        <header className="flex items-center justify-between border-b border-ink/8 bg-surface px-8 py-3.5">
           <div className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted">
             <span>{ROL_LABEL[user.rol]}</span>
             <ChevronRight size={12} />

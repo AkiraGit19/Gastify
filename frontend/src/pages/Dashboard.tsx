@@ -1,10 +1,37 @@
 import { useEffect, useState } from "react";
+import { Clock, CheckCircle2, Wallet } from "lucide-react";
 import { api } from "../lib/api";
 import type { Gasto } from "../lib/types";
 import { CATEGORIA_LABEL } from "../lib/types";
 import { CountUp } from "../components/CountUp";
 import { ReceiptRow } from "../components/ReceiptRow";
+import { CategoryBarChart } from "../components/CategoryBarChart";
 import { useAuth } from "../lib/auth";
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  sublabel,
+}: {
+  icon: typeof Clock;
+  label: string;
+  value: React.ReactNode;
+  sublabel: string;
+}) {
+  return (
+    <div className="receipt-card flex items-start justify-between p-5">
+      <div>
+        <p className="mb-2 text-xs text-muted">{label}</p>
+        <p className="font-mono text-2xl font-semibold text-ink">{value}</p>
+        <p className="mt-1 text-xs text-muted">{sublabel}</p>
+      </div>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+        <Icon size={17} strokeWidth={2} />
+      </div>
+    </div>
+  );
+}
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -19,20 +46,16 @@ export function Dashboard() {
   const pendientes = gastos.filter((g) => g.estado === "pendiente" || g.estado === "pendiente_validacion");
   const aprobados = gastos.filter((g) => g.estado === "aprobado");
   const totalPendiente = pendientes.reduce((sum, g) => sum + Number(g.monto), 0);
+  const totalAprobado = aprobados.reduce((sum, g) => sum + Number(g.monto), 0);
+  const totalGeneral = gastos.reduce((sum, g) => sum + Number(g.monto), 0);
 
   const porCategoria = (Object.keys(CATEGORIA_LABEL) as (keyof typeof CATEGORIA_LABEL)[]).map((cat) => ({
-    categoria: cat,
-    total: gastos.filter((g) => g.categoria === cat).reduce((sum, g) => sum + Number(g.monto), 0),
+    label: CATEGORIA_LABEL[cat],
+    value: gastos.filter((g) => g.categoria === cat).reduce((sum, g) => sum + Number(g.monto), 0),
   }));
-  const CATEGORIA_DOT: Record<string, string> = {
-    movilidad: "bg-brand",
-    alimentacion: "bg-stamp-aprobado",
-    hospedaje: "bg-stamp-pendiente",
-    otros: "bg-ink/40",
-  };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
           {user?.rol === "empleado" ? "Tus gastos" : "Resumen de gastos"}
@@ -40,43 +63,30 @@ export function Dashboard() {
         <p className="text-sm text-muted">Así está la rendición de gastos hoy.</p>
       </div>
 
-      {/* Ledger-style total, like the bottom line of a receipt, instead of three identical tiles. */}
-      <div className="receipt-card flex flex-col gap-6 px-7 py-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-stamp-pendiente">
-            Por aprobar ahora
-          </p>
-          <p className="font-mono text-4xl font-semibold tracking-tight text-ink">
-            S/ <CountUp value={totalPendiente} decimals={2} />
-          </p>
-          <p className="mt-1 text-xs text-muted">{pendientes.length} comprobante(s) esperando decisión</p>
-        </div>
-        <div className="flex gap-8 border-t border-ink/8 pt-4 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-8">
-          <div>
-            <p className="font-mono text-2xl font-semibold text-stamp-aprobado">
-              <CountUp value={aprobados.length} />
-            </p>
-            <p className="text-xs text-muted">Aprobados</p>
-          </div>
-          <div>
-            <p className="font-mono text-2xl font-semibold text-ink">
-              <CountUp value={gastos.length} />
-            </p>
-            <p className="text-xs text-muted">Total registrados</p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          icon={Clock}
+          label="Por aprobar ahora"
+          value={<>S/ <CountUp value={totalPendiente} decimals={2} /></>}
+          sublabel={`${pendientes.length} comprobante(s)`}
+        />
+        <StatCard
+          icon={CheckCircle2}
+          label="Aprobados"
+          value={<>S/ <CountUp value={totalAprobado} decimals={2} /></>}
+          sublabel={`${aprobados.length} comprobante(s)`}
+        />
+        <StatCard
+          icon={Wallet}
+          label="Total registrado"
+          value={<>S/ <CountUp value={totalGeneral} decimals={2} /></>}
+          sublabel={`${gastos.length} comprobante(s) en total`}
+        />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {porCategoria.map(({ categoria, total }) => (
-          <div key={categoria} className="receipt-card px-4 py-3">
-            <div className="mb-1.5 flex items-center gap-1.5">
-              <span className={`h-1.5 w-1.5 rounded-full ${CATEGORIA_DOT[categoria]}`} />
-              <span className="text-xs text-muted">{CATEGORIA_LABEL[categoria]}</span>
-            </div>
-            <p className="font-mono text-lg font-semibold text-ink">S/ {total.toFixed(2)}</p>
-          </div>
-        ))}
+      <div className="receipt-card p-6">
+        <h2 className="font-display mb-4 text-sm font-semibold text-ink">Gastos por categoría</h2>
+        <CategoryBarChart data={porCategoria} />
       </div>
 
       <div>
