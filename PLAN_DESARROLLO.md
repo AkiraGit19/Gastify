@@ -35,27 +35,32 @@ Todavía no construido. Está ordenado por audiencia porque así lo planteaste, 
 
 ### 1.1 Para el colaborador (quien gasta)
 - [ ] Carga de PDF/XML compartido desde WhatsApp/galería (hoy el bot solo procesa fotos) — requiere extender el webhook para aceptar `document` además de `image`, y un parser de XML de factura electrónica (formato UBL de SUNAT) además del OCR de imagen
-- [ ] Ampliar categorías más allá de las 4 actuales — **ver conflicto abajo, necesito tu decisión antes de tocar el modelo de datos**
+- [ ] Migrar a las 7 categorías finales (ver decisión #1 abajo)
 
 ### 1.2 Para el administrador/dueño
-- [ ] **Módulo de rendición y reembolsos líquidos**: rastrear si la empresa le debe dinero al empleado (gastó de su bolsillo) o si el empleado debe sustentar un adelanto que ya recibió (efectivo/Yape/Plin). Esto es un concepto nuevo en el modelo de datos — hoy un gasto solo tiene estado aprobado/rechazado/pendiente, no un balance de quién le debe a quién.
+- [ ] **Módulo de rendición y reembolsos líquidos**: rastrear si la empresa le debe dinero al empleado (gastó de su bolsillo) o si el empleado debe sustentar un adelanto que ya recibió (efectivo/Yape/Plin). Saldo con paso manual (ver decisión #3).
 - [ ] **Presupuestos mensuales por empleado y categoría** (ej. "Juan: S/200/mes en movilidad"), con aviso al empleado antes de que registre un gasto que se pase del tope
 
 ### 1.3 Cumplimiento tributario (el diferenciador frente a la competencia)
 - [ ] La validación de RUC activo/habido contra SUNAT ya existe (Fase 0) — falta solo la API key real
-- [ ] **Alertas de "gasto no deducible"**: detectar cuando un comprobante no cumple el principio de causalidad o excede los topes de SUNAT para boletas de venta / gastos de contingencia. Esto requiere reglas de negocio específicas que no están en la spec original — necesito que me las definas o las investigue contigo antes de construir, porque un error aquí le genera una multa real a tu cliente.
+- [ ] **Alertas de "gasto no deducible"**: detectar cuando un comprobante no cumple el principio de causalidad o excede los topes de SUNAT para boletas de venta / gastos de contingencia. Esto requiere reglas de negocio específicas que no están en la spec original — necesito que me las definas o las investigue contigo antes de construir, porque un error aquí le genera una multa real a tu cliente. Sigue abierto hasta que tengamos esas reglas exactas.
 
 ### 1.4 Para el contador externo (canal de venta, según tu nota)
 - [ ] **Exportación enriquecida**: separar Base Imponible e IGV en el CSV (hoy solo exporta el monto total) — cambio simple una vez sepamos si el monto se guarda con o sin IGV desglosado
 - [ ] **Repositorio de fotos/PDFs por mes**, descargable como link — sencillo de construir sobre Cloudinary/almacenamiento ya existente
-- [ ] Esto probablemente implica un **rol nuevo (contador)**, de solo lectura sobre reportes y repositorio, sin acceso a aprobar/gestionar equipo — no existe todavía en el modelo de 4 roles
+- [ ] **Rol nuevo: contador** — de solo lectura sobre reportes y repositorio de toda la empresa, sin poder aprobar ni gestionar equipo (ver decisión #2)
 
 ---
 
-## Conflictos y decisiones abiertas (antes de empezar la Fase 1)
+## Decisiones tomadas
 
-1. **Categorías:** la spec original define 4 (Movilidad, Alimentación, Hospedaje, Otros — ya usadas en todo el bot de WhatsApp y el dashboard). Lo que pasaste ahora sugiere otras 5: Alimentación, Transporte, Combustible, Herramientas, Útiles de Oficina. Son listas distintas, no una extensión de la misma. Necesito que definas la lista final antes de tocar el modelo de datos y los mensajes del bot, porque cambiarla implica migrar los gastos ya sembrados y reescribir los botones de WhatsApp.
-2. **Rol contador:** ¿es un usuario más dentro de la empresa (como aprobador/empleado), o un acceso separado tipo "invitado" sin necesidad de que el admin le cree cuenta formal?
-3. **Reembolsos líquidos:** ¿el saldo se calcula automático a partir del historial de aprobados, o hay un paso manual donde el admin marca "ya le pagué a Juan"?
+**1. Categorías — lista final (7, fusiona ambas listas):**
+Movilidad/Transporte · Combustible · Alimentación · Hospedaje · Herramientas y Materiales · Útiles de Oficina · Otros.
+Razón: junté las dos listas en vez de elegir una — cubren gastos distintos (viáticos vs. flota vs. insumos) y una MIPE real tiene los dos tipos. Queda justo en el techo de "5 a 7" que tú mismo marcaste como límite práctico. Migración de las 4 actuales es directa (renombrar movilidad→Movilidad/Transporte, las otras 3 igual) — nada se pierde. Efecto colateral real que hay que arreglar de todas formas: con 7 categorías el bot ya no puede usar botones de WhatsApp (Meta limita a 3 por mensaje) — hay que pasar esa pregunta a un mensaje de lista (soporta hasta 10), cambio necesario sin importar cuántas categorías queden.
+
+**2. Aprobador y contador — los dejo como roles separados, no el mismo.**
+Entiendo la intuición de fusionarlos (ambos "revisan gastos"), pero su alcance es opuesto: el aprobador es interno, decide (aprueba/rechaza), y solo debe ver a la gente que le reporta a él — un jefe de área no debería poder exportar los gastos de toda la empresa. El contador es externo, de solo lectura, pero necesita ver TODO (para armar la declaración de impuestos completa), no un subconjunto. Fusionarlos significaría darle a un tercero externo poder de aprobar gastos (riesgo real), o darle a cada jefe de área acceso a los sueldos/gastos de departamentos que no le corresponden. Es un rol nuevo, pero barato de agregar: mismo mecanismo de scope por empresa que ya existe, solo sin permiso de escritura.
+
+**3. Reembolsos líquidos — paso manual confirmado.** El admin marca "ya le pagué a Juan"; no se intenta automatizar la conciliación bancaria en v1 de esta fase.
 
 No voy a construir nada de la Fase 1 todavía — quedó claro que era para "más adelante". Este documento es la referencia para cuando digas que arranquemos.
