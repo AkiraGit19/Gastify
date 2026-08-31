@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { db } from "./db.js";
+import type { Categoria, EstadoGasto } from "@prisma/client";
 
 async function main() {
   await db.conversacionWA.deleteMany();
@@ -47,9 +48,10 @@ async function main() {
     },
   });
 
-  const placeholderImg = "https://placehold.co/400x560/e6f4fb/2fa8d6?text=Boleta";
+  const placeholderImg = "https://placehold.co/400x560/e6f4fb/2fa8d6";
 
-  const gastosData = [
+  // Recent inbox (last ~20 days): what "today" looks like, with items still pendiente/validando.
+  const recientes = [
     { usuarioId: empleado1.id, monto: 25.5, categoria: "movilidad", estado: "pendiente", dias: 1, proveedor: "Taxi Seguro SAC" },
     { usuarioId: empleado1.id, monto: 340, categoria: "hospedaje", estado: "aprobado", dias: 5, proveedor: "Hotel Costa del Sol" },
     { usuarioId: empleado1.id, monto: 68.9, categoria: "alimentacion", estado: "rechazado", dias: 3, proveedor: "Restaurante El Fogón" },
@@ -58,13 +60,49 @@ async function main() {
     { usuarioId: empleado2.id, monto: 210.75, categoria: "alimentacion", estado: "aprobado", dias: 7, proveedor: "Supermercados Peruanos" },
   ] as const;
 
+  const gastosData: { usuarioId: string; monto: number; categoria: Categoria; estado: EstadoGasto; fecha: Date; proveedor: string }[] =
+    recientes.map((g) => ({ ...g, fecha: new Date(Date.now() - g.dias * 86_400_000) }));
+
+  // Historial ene–jul (mismo año): para que el gráfico "Gastos por mes" del dashboard tenga
+  // una tendencia real de varios meses en vez de una sola barra.
+  const PROVEEDORES: Record<Categoria, string[]> = {
+    movilidad: ["Taxi Seguro SAC", "Uber Perú", "Metropolitano"],
+    alimentacion: ["Supermercados Peruanos", "Restaurante El Fogón", "Bembos"],
+    hospedaje: ["Hotel Costa del Sol", "Casa Andina"],
+    otros: ["Ferretería Central", "Sodimac", "Officemax"],
+  };
+  const CATEGORIAS = Object.keys(PROVEEDORES) as Categoria[];
+  const year = new Date().getFullYear();
+  let idx = 0;
+
+  for (let mes = 0; mes < 7; mes++) {
+    const registros = 2 + (mes % 3);
+    for (let j = 0; j < registros; j++) {
+      const usuario = j % 2 === 0 ? empleado1 : empleado2;
+      const categoria = CATEGORIAS[idx % CATEGORIAS.length];
+      const proveedores = PROVEEDORES[categoria];
+      const proveedor = proveedores[(idx + mes) % proveedores.length];
+      const monto = Math.round((45 + mes * 9 + j * 22) * 100) / 100;
+      const estado: EstadoGasto = idx % 7 === 0 ? "rechazado" : "aprobado";
+      gastosData.push({
+        usuarioId: usuario.id,
+        monto,
+        categoria,
+        estado,
+        fecha: new Date(year, mes, Math.min(3 + j * 6, 27)),
+        proveedor,
+      });
+      idx++;
+    }
+  }
+
   for (const [i, g] of gastosData.entries()) {
     await db.gasto.create({
       data: {
         empresaId: acme.id,
         usuarioId: g.usuarioId,
         monto: g.monto,
-        fechaGasto: new Date(Date.now() - g.dias * 86_400_000),
+        fechaGasto: g.fecha,
         categoria: g.categoria,
         rucEmisor: "2010000" + (1000 + i),
         razonSocialEmisor: g.proveedor,

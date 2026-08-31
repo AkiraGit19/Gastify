@@ -65,6 +65,12 @@ usuariosRouter.patch("/:id", async (req, res) => {
   const existing = await db.usuario.findFirst({ where: { id: req.params.id, empresaId } });
   if (!existing) return res.status(404).json({ error: "No encontrado" });
 
+  // Without this, the only admin of a company could deactivate their own account and lock
+  // everyone out — there's no other way back in since roles can only be changed by an admin.
+  if (existing.id === req.user!.id && parsed.data.activo === false) {
+    return res.status(400).json({ error: "No puedes dar de baja tu propia cuenta" });
+  }
+
   const usuario = await db.usuario.update({ where: { id: existing.id }, data: parsed.data });
   res.json(usuario);
 });

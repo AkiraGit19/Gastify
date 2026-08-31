@@ -1,11 +1,16 @@
-const CONFIG: Record<string, { label: string; className: string }> = {
-  pendiente: { label: "Pendiente", className: "text-stamp-pendiente" },
-  pendiente_validacion: { label: "Validando", className: "text-stamp-validando" },
-  aprobado: { label: "Aprobado", className: "text-stamp-aprobado" },
-  rechazado: { label: "Rechazado", className: "text-stamp-rechazado" },
+export const ESTADO_CONFIG: Record<string, { label: string; color: string }> = {
+  pendiente: { label: "Pendiente", color: "var(--color-stamp-pendiente)" },
+  pendiente_validacion: { label: "Validando", color: "var(--color-stamp-validando)" },
+  aprobado: { label: "Aprobado", color: "var(--color-stamp-aprobado)" },
+  rechazado: { label: "Rechazado", color: "var(--color-stamp-rechazado)" },
 };
 
 export function StatusPill({ estado }: { estado: string }) {
-  const cfg = CONFIG[estado] ?? { label: estado, className: "text-muted" };
-  return <span className={`stamp ${cfg.className}`}>{cfg.label}</span>;
+  const cfg = ESTADO_CONFIG[estado] ?? { label: estado, color: "var(--color-muted)" };
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: cfg.color }} />
+      {cfg.label}
+    </span>
+  );
 }

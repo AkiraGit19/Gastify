@@ -8,6 +8,7 @@ import { Gastos } from "./pages/Gastos";
 import { Aprobaciones } from "./pages/Aprobaciones";
 import { Equipo } from "./pages/Equipo";
 import { SuperAdminHome } from "./pages/SuperAdminHome";
+import { Configuracion } from "./pages/Configuracion";
 
 function ProtectedLayout() {
   const { user } = useAuth();
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/gastos" element={<Gastos />} />
             <Route path="/aprobaciones" element={<Aprobaciones />} />
             <Route path="/equipo" element={<Equipo />} />
+            <Route path="/configuracion" element={<Configuracion />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

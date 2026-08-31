@@ -57,7 +57,7 @@ export function Login() {
           </ul>
         </div>
 
-        <p className="relative font-mono text-xs text-white/40">Perú · SUNAT · WhatsApp Business</p>
+        <p className="relative text-xs text-white/40">Perú · SUNAT · WhatsApp Business</p>
       </div>
 
       <div className="flex flex-1 items-center justify-center px-4">
@@ -96,7 +96,7 @@ export function Login() {
               <button
                 type="submit"
                 disabled={status === "loading"}
-                className="rounded-md bg-rail px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
+                className="rounded-md bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
               >
                 {status === "loading" ? "Enviando..." : "Enviarme un enlace de acceso"}
               </button>

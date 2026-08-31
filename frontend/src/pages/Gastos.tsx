@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
-import { Download, CalendarClock, Tag, ChevronDown, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Download, ChevronDown, ChevronLeft, ChevronRight, Tag, CalendarClock } from "lucide-react";
 import { api, apiUrl } from "../lib/api";
 import type { Gasto } from "../lib/types";
 import { CATEGORIA_LABEL } from "../lib/types";
-import { ReceiptRow } from "../components/ReceiptRow";
+import { StatusPill } from "../components/StatusPill";
+import { ReceiptViewer } from "../components/ReceiptViewer";
+import { relativeDate } from "../lib/format";
 import { useAuth } from "../lib/auth";
 
 const ESTADOS = ["pendiente", "pendiente_validacion", "aprobado", "rechazado"] as const;
@@ -14,7 +16,9 @@ const ESTADO_LABEL: Record<string, string> = {
   rechazado: "Rechazado",
 };
 
-function FilterChip({
+const PAGE_SIZE = 12;
+
+function FilterSelect({
   icon: Icon,
   value,
   onChange,
@@ -28,19 +32,19 @@ function FilterChip({
   placeholder: string;
 }) {
   return (
-    <div className="relative flex items-center rounded-full border border-ink/15 bg-surface pl-3 pr-7 text-xs">
-      <Icon size={13} className="mr-1.5 shrink-0 text-muted" />
+    <div className="relative">
+      <Icon size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="appearance-none bg-transparent py-2 font-mono uppercase tracking-wide text-ink outline-none"
+        className="appearance-none rounded-md border border-ink/15 bg-surface py-2.5 pl-8 pr-8 text-sm font-medium text-ink outline-none"
       >
         <option value="">{placeholder}</option>
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
-      <ChevronDown size={12} className="pointer-events-none absolute right-2.5 text-muted" />
+      <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted" />
     </div>
   );
 }
@@ -50,6 +54,7 @@ export function Gastos() {
   const [gastos, setGastos] = useState<Gasto[] | null>(null);
   const [estado, setEstado] = useState("");
   const [categoria, setCategoria] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const qs = new URLSearchParams();
@@ -58,8 +63,9 @@ export function Gastos() {
     api.get<Gasto[]>(`/gastos?${qs.toString()}`).then(setGastos);
   }, [estado, categoria]);
 
+  useEffect(() => setPage(1), [estado, categoria]);
+
   const token = localStorage.getItem("gastify_token") ?? "";
-  const hasFilters = Boolean(estado || categoria);
 
   async function exportCsv() {
     const qs = new URLSearchParams({ ...(estado ? { estado } : {}), ...(categoria ? { categoria } : {}) });
@@ -73,66 +79,122 @@ export function Gastos() {
     URL.revokeObjectURL(url);
   }
 
+  const totalPages = Math.max(1, Math.ceil((gastos?.length ?? 0) / PAGE_SIZE));
+  const pageItems = useMemo(() => {
+    if (!gastos) return [];
+    const start = (page - 1) * PAGE_SIZE;
+    return gastos.slice(start, start + PAGE_SIZE);
+  }, [gastos, page]);
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col">
+      <div className="flex flex-col justify-between gap-4 border-b border-ink/8 pb-6 sm:flex-row sm:items-start">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
             {user?.rol === "empleado" ? "Mis gastos" : "Gastos"}
           </h1>
-          <p className="text-sm text-muted">Filtra por estado o categoría.</p>
+          <p className="mt-1 text-sm text-muted">Filtra por estado o categoría.</p>
         </div>
         {user?.rol !== "empleado" && (
           <button
             onClick={exportCsv}
-            className="flex items-center gap-2 rounded-md bg-rail px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+            className="flex items-center justify-center gap-2 rounded-md bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
           >
             <Download size={16} /> Exportar CSV
           </button>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <FilterChip
+      <div className="flex flex-wrap items-center gap-2.5 border-b border-ink/8 py-6">
+        <FilterSelect
           icon={CalendarClock}
           value={estado}
           onChange={setEstado}
           placeholder="Todos los estados"
           options={ESTADOS.map((e) => ({ value: e, label: ESTADO_LABEL[e] }))}
         />
-        <FilterChip
+        <FilterSelect
           icon={Tag}
           value={categoria}
           onChange={setCategoria}
           placeholder="Todas las categorías"
           options={Object.entries(CATEGORIA_LABEL).map(([value, label]) => ({ value, label }))}
         />
-        {hasFilters && (
-          <button
-            onClick={() => {
-              setEstado("");
-              setCategoria("");
-            }}
-            className="flex items-center gap-1 rounded-full px-3 py-2 font-mono text-xs uppercase tracking-wide text-muted hover:text-ink"
-          >
-            <X size={12} /> Limpiar
-          </button>
-        )}
       </div>
 
-      <div className="flex flex-col gap-3">
-        {gastos?.map((g) => (
-          <ReceiptRow
-            key={g.id}
-            imagenUrl={g.imagenUrl}
-            scanning={g.estado === "pendiente_validacion"}
-            title={g.razonSocialEmisor ?? "Proveedor sin confirmar"}
-            meta={`${g.usuario.nombre} · ${CATEGORIA_LABEL[g.categoria]} · ${new Date(g.fechaGasto).toLocaleDateString("es-PE")}`}
-            amount={`S/ ${Number(g.monto).toFixed(2)}`}
-            estado={g.estado}
-          />
-        ))}
-        {gastos?.length === 0 && <p className="py-6 text-center text-sm text-muted">No hay gastos con estos filtros.</p>}
+      <div className="pt-6">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-ink/8 text-xs text-muted">
+                <th className="py-2 pr-4 font-medium">Colaborador</th>
+                <th className="py-2 pr-4 font-medium">Proveedor</th>
+                <th className="py-2 pr-4 font-medium">Categoría</th>
+                <th className="py-2 pr-4 font-medium">Estado</th>
+                <th className="py-2 pr-4 font-medium">Monto</th>
+                <th className="py-2 pr-4 font-medium">Fecha</th>
+                <th className="w-8 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {pageItems.map((g) => (
+                <tr key={g.id} className="border-b border-ink/6 last:border-0">
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[11px] font-semibold text-brand">
+                        {g.usuario.nombre.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="font-medium text-ink">{g.usuario.nombre}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 text-muted">{g.razonSocialEmisor ?? "Sin confirmar"}</td>
+                  <td className="py-3 pr-4 text-muted">{CATEGORIA_LABEL[g.categoria]}</td>
+                  <td className="py-3 pr-4">
+                    <StatusPill estado={g.estado} />
+                  </td>
+                  <td className="py-3 pr-4 font-medium tabular-nums text-ink">S/ {Number(g.monto).toFixed(2)}</td>
+                  <td className="py-3 pr-4 text-muted">{relativeDate(g.fechaGasto)}</td>
+                  <td className="py-3">
+                    <ReceiptViewer url={g.imagenUrl} />
+                  </td>
+                </tr>
+              ))}
+              {gastos?.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-muted">
+                    No hay gastos con estos filtros.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {gastos && gastos.length > PAGE_SIZE && (
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <p className="text-muted">
+              Página {page} de {totalPages} · {gastos.length} gastos
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-ink/12 text-ink disabled:opacity-30"
+                aria-label="Página anterior"
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-ink/12 text-ink disabled:opacity-30"
+                aria-label="Página siguiente"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

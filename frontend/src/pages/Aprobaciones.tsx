@@ -3,8 +3,8 @@ import { Check, X } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import type { Gasto } from "../lib/types";
 import { CATEGORIA_LABEL } from "../lib/types";
-import { ReceiptThumb } from "../components/ReceiptThumb";
 import { StatusPill } from "../components/StatusPill";
+import { ReceiptViewer } from "../components/ReceiptViewer";
 
 export function Aprobaciones() {
   const [gastos, setGastos] = useState<Gasto[] | null>(null);
@@ -31,46 +31,76 @@ export function Aprobaciones() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Aprobaciones pendientes</h1>
-        <p className="text-sm text-muted">Revisa y decide sobre los gastos de tu equipo.</p>
+    <div className="flex flex-col">
+      <div className="border-b border-ink/8 pb-6">
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">Aprobaciones pendientes</h1>
+        <p className="mt-1 text-sm text-muted">Revisa y decide sobre los gastos de tu equipo.</p>
       </div>
 
-      {error && <p className="text-sm text-stamp-rechazado">{error}</p>}
+      {error && <p className="border-b border-ink/8 py-3 text-sm text-stamp-rechazado">{error}</p>}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {gastos?.map((g) => (
-          <div key={g.id} className="receipt-card flex flex-col gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <ReceiptThumb url={g.imagenUrl} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-ink">{g.razonSocialEmisor ?? "Proveedor sin confirmar"}</p>
-                <p className="truncate text-xs text-muted">{g.usuario.nombre}</p>
-              </div>
-              {g.estado === "pendiente_validacion" && <StatusPill estado={g.estado} />}
-            </div>
-            <div className="flex items-center justify-between border-t border-dashed border-ink/15 pt-3 text-sm">
-              <span className="text-muted">{CATEGORIA_LABEL[g.categoria]}</span>
-              <span className="font-mono font-semibold text-ink">S/ {Number(g.monto).toFixed(2)}</span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => decide(g.id, true)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-stamp-aprobado/30 py-2 text-sm font-semibold text-stamp-aprobado transition-transform hover:scale-[1.02]"
-              >
-                <Check size={16} /> Aprobar
-              </button>
-              <button
-                onClick={() => decide(g.id, false)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-stamp-rechazado/30 py-2 text-sm font-semibold text-stamp-rechazado transition-transform hover:scale-[1.02]"
-              >
-                <X size={16} /> Rechazar
-              </button>
-            </div>
-          </div>
-        ))}
-        {gastos?.length === 0 && <p className="text-sm text-muted">No hay gastos pendientes de aprobación.</p>}
+      <div className="pt-6">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-ink/8 text-xs text-muted">
+                <th className="py-2 pr-4 font-medium">Colaborador</th>
+                <th className="py-2 pr-4 font-medium">Proveedor</th>
+                <th className="py-2 pr-4 font-medium">Categoría</th>
+                <th className="py-2 pr-4 font-medium">Estado</th>
+                <th className="py-2 pr-4 font-medium">Monto</th>
+                <th className="w-8 py-2" />
+                <th className="py-2 pr-0 font-medium">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gastos?.map((g) => (
+                <tr key={g.id} className="border-b border-ink/6 last:border-0">
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[11px] font-semibold text-brand">
+                        {g.usuario.nombre.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="font-medium text-ink">{g.usuario.nombre}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 text-muted">{g.razonSocialEmisor ?? "Sin confirmar"}</td>
+                  <td className="py-3 pr-4 text-muted">{CATEGORIA_LABEL[g.categoria]}</td>
+                  <td className="py-3 pr-4">
+                    <StatusPill estado={g.estado} />
+                  </td>
+                  <td className="py-3 pr-4 font-medium tabular-nums text-ink">S/ {Number(g.monto).toFixed(2)}</td>
+                  <td className="py-3 pr-4">
+                    <ReceiptViewer url={g.imagenUrl} />
+                  </td>
+                  <td className="py-3 pr-0">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => decide(g.id, true)}
+                        className="flex items-center gap-1.5 rounded-md border border-stamp-aprobado/30 px-3 py-1.5 text-xs font-semibold text-stamp-aprobado transition-transform hover:scale-[1.03]"
+                      >
+                        <Check size={14} /> Aprobar
+                      </button>
+                      <button
+                        onClick={() => decide(g.id, false)}
+                        className="flex items-center gap-1.5 rounded-md border border-stamp-rechazado/30 px-3 py-1.5 text-xs font-semibold text-stamp-rechazado transition-transform hover:scale-[1.03]"
+                      >
+                        <X size={14} /> Rechazar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {gastos?.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-muted">
+                    No hay gastos pendientes de aprobación.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
