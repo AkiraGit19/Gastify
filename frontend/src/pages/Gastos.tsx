@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, ChevronDown, ChevronLeft, ChevronRight, Tag, CalendarClock } from "lucide-react";
+import { Download, ChevronDown, ChevronLeft, ChevronRight, Tag, CalendarClock, Search } from "lucide-react";
 import { api, apiUrl } from "../lib/api";
 import type { Gasto } from "../lib/types";
 import { CATEGORIA_LABEL } from "../lib/types";
@@ -54,16 +54,29 @@ export function Gastos() {
   const [gastos, setGastos] = useState<Gasto[] | null>(null);
   const [estado, setEstado] = useState("");
   const [categoria, setCategoria] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
   useEffect(() => {
     const qs = new URLSearchParams();
     if (estado) qs.set("estado", estado);
     if (categoria) qs.set("categoria", categoria);
+    setGastos(null);
     api.get<Gasto[]>(`/gastos?${qs.toString()}`).then(setGastos);
   }, [estado, categoria]);
 
-  useEffect(() => setPage(1), [estado, categoria]);
+  useEffect(() => setPage(1), [estado, categoria, search]);
+
+  const filtered = useMemo(() => {
+    if (!gastos) return null;
+    if (!search.trim()) return gastos;
+    const q = search.trim().toLowerCase();
+    return gastos.filter((g) =>
+      [g.usuario.nombre, g.razonSocialEmisor, g.numeroComprobante, g.rucEmisor]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(q)),
+    );
+  }, [gastos, search]);
 
   const token = localStorage.getItem("gastify_token") ?? "";
 
@@ -79,12 +92,12 @@ export function Gastos() {
     URL.revokeObjectURL(url);
   }
 
-  const totalPages = Math.max(1, Math.ceil((gastos?.length ?? 0) / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil((filtered?.length ?? 0) / PAGE_SIZE));
   const pageItems = useMemo(() => {
-    if (!gastos) return [];
+    if (!filtered) return [];
     const start = (page - 1) * PAGE_SIZE;
-    return gastos.slice(start, start + PAGE_SIZE);
-  }, [gastos, page]);
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, page]);
 
   return (
     <div className="flex flex-col">
@@ -120,8 +133,20 @@ export function Gastos() {
           placeholder="Todas las categorías"
           options={Object.entries(CATEGORIA_LABEL).map(([value, label]) => ({ value, label }))}
         />
+        <div className="relative">
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por proveedor, comprobante, RUC o colaborador..."
+            className="w-full rounded-md border border-ink/15 bg-page py-2.5 pl-8 pr-3 text-sm outline-none focus:border-brand sm:w-72"
+          />
+        </div>
       </div>
 
+      {!gastos ? (
+        <p className="pt-6 text-sm text-muted">Cargando...</p>
+      ) : (
       <div className="pt-6">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
@@ -159,7 +184,7 @@ export function Gastos() {
                   </td>
                 </tr>
               ))}
-              {gastos?.length === 0 && (
+              {filtered?.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-10 text-center text-muted">
                     No hay gastos con estos filtros.
@@ -170,10 +195,10 @@ export function Gastos() {
           </table>
         </div>
 
-        {gastos && gastos.length > PAGE_SIZE && (
+        {filtered && filtered.length > PAGE_SIZE && (
           <div className="mt-4 flex items-center justify-between text-sm">
             <p className="text-muted">
-              Página {page} de {totalPages} · {gastos.length} gastos
+              Página {page} de {totalPages} · {filtered.length} gastos
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -196,6 +221,7 @@ export function Gastos() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

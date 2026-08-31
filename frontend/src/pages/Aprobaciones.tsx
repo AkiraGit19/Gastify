@@ -22,11 +22,15 @@ export function Aprobaciones() {
 
   async function decide(id: string, decision: boolean) {
     setError("");
+    // Remove it from the list right away instead of waiting on a full reload — on a cold backend
+    // that round trip alone can take tens of seconds, and an unchanged list reads as "nothing
+    // happened". If the request actually fails, load() below puts it back.
+    setGastos((prev) => prev?.filter((g) => g.id !== id) ?? prev);
     try {
       await api.post(`/gastos/${id}/decision`, { decision });
-      load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo registrar la decisión");
+      load();
     }
   }
 
@@ -39,6 +43,9 @@ export function Aprobaciones() {
 
       {error && <p className="border-b border-ink/8 py-3 text-sm text-stamp-rechazado">{error}</p>}
 
+      {!gastos ? (
+        <p className="pt-6 text-sm text-muted">Cargando...</p>
+      ) : (
       <div className="pt-6">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
@@ -102,6 +109,7 @@ export function Aprobaciones() {
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 }

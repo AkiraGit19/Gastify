@@ -30,5 +30,11 @@ app.use("/usuarios", usuariosRouter);
 app.use("/gastos", gastosRouter);
 app.use("/whatsapp", whatsappRouter);
 
-const port = Number(process.env.PORT ?? 4000);
-app.listen(port, () => console.log(`Gastify backend escuchando en http://localhost:${port}`));
+export default app;
+
+// Vercel imports this file as a serverless function and calls the exported app directly —
+// it must never bind a port itself. VERCEL is set automatically in that environment.
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT ?? 4000);
+  app.listen(port, () => console.log(`Gastify backend escuchando en http://localhost:${port}`));
+}
