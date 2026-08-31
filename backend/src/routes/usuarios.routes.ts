@@ -1,9 +1,44 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
 
 export const usuariosRouter = Router();
+
+const meSchema = z.object({
+  nombre: z.string().min(1).optional(),
+  telefonoWhatsapp: z.string().min(8).nullable().optional(),
+});
+
+// Any authenticated role can read/edit their own name and phone — scoped to req.user.id, never
+// a param, so there's no way to reach another user's row through this endpoint.
+usuariosRouter.get("/me", requireAuth, async (req, res) => {
+  const usuario = await db.usuario.findUniqueOrThrow({
+    where: { id: req.user!.id },
+    select: { id: true, nombre: true, email: true, telefonoWhatsapp: true, rol: true },
+  });
+  res.json(usuario);
+});
+
+usuariosRouter.patch("/me", requireAuth, async (req, res) => {
+  const parsed = meSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  try {
+    const usuario = await db.usuario.update({
+      where: { id: req.user!.id },
+      data: parsed.data,
+      select: { id: true, nombre: true, email: true, telefonoWhatsapp: true, rol: true },
+    });
+    res.json(usuario);
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return res.status(400).json({ error: "Ese número de WhatsApp ya está en uso" });
+    }
+    throw err;
+  }
+});
 
 usuariosRouter.use(requireAuth, requireRole("admin"));
 

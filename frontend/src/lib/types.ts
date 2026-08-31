@@ -14,6 +14,12 @@ export interface Gasto {
   usuario: { nombre: string };
 }
 
+export interface Empresa {
+  id: string;
+  razonSocial: string;
+  ruc: string;
+}
+
 export interface Usuario {
   id: string;
   nombre: string;
