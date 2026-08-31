@@ -5,7 +5,7 @@ import type { Gasto } from "../lib/types";
 import { CATEGORIA_LABEL } from "../lib/types";
 import { StatusPill } from "../components/StatusPill";
 import { ReceiptViewer } from "../components/ReceiptViewer";
-import { relativeDate } from "../lib/format";
+import { relativeDate, normalizeSearch } from "../lib/format";
 import { useAuth } from "../lib/auth";
 
 const ESTADOS = ["pendiente", "pendiente_validacion", "aprobado", "rechazado"] as const;
@@ -70,11 +70,11 @@ export function Gastos() {
   const filtered = useMemo(() => {
     if (!gastos) return null;
     if (!search.trim()) return gastos;
-    const q = search.trim().toLowerCase();
+    const q = normalizeSearch(search.trim());
     return gastos.filter((g) =>
       [g.usuario.nombre, g.razonSocialEmisor, g.numeroComprobante, g.rucEmisor]
         .filter(Boolean)
-        .some((field) => field!.toLowerCase().includes(q)),
+        .some((field) => normalizeSearch(field!).includes(q)),
     );
   }, [gastos, search]);
 

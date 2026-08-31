@@ -7,7 +7,7 @@ import { CountUp } from "../components/CountUp";
 import { CategorySegments } from "../components/CategorySegments";
 import { MonthlyValueChart } from "../components/MonthlyValueChart";
 import { StatusPill } from "../components/StatusPill";
-import { relativeDate } from "../lib/format";
+import { relativeDate, normalizeSearch } from "../lib/format";
 import { useAuth } from "../lib/auth";
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -87,7 +87,7 @@ export function Dashboard() {
       .filter((g) => (tab ? g.estado === tab : true))
       .filter((g) =>
         search
-          ? `${g.usuario.nombre} ${g.razonSocialEmisor ?? ""}`.toLowerCase().includes(search.toLowerCase())
+          ? normalizeSearch(`${g.usuario.nombre} ${g.razonSocialEmisor ?? ""}`).includes(normalizeSearch(search))
           : true,
       );
   }, [gastos, tab, search]);

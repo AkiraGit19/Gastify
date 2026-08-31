@@ -8,3 +8,12 @@ export function relativeDate(dateStr: string) {
 export function money(n: number) {
   return `S/ ${n.toLocaleString("es-PE", { maximumFractionDigits: 0 })}`;
 }
+
+// Strips accents so a search for "ferreteria" matches "Ferretería" — in Spanish text, requiring
+// the exact tilde is the difference between a search box that works and one that never does.
+export function normalizeSearch(s: string) {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
