@@ -171,12 +171,14 @@ export function Equipo() {
                   <td className="py-3 pr-4 text-muted">{u.telefonoWhatsapp}</td>
                   <td className="py-3 pr-0">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => setResetTarget(u)}
-                        className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink"
-                      >
-                        Restablecer contraseña
-                      </button>
+                      {u.id !== user?.id && (
+                        <button
+                          onClick={() => setResetTarget(u)}
+                          className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink"
+                        >
+                          Restablecer contraseña
+                        </button>
+                      )}
                       {u.id === user?.id ? (
                         <span className="px-3 py-1.5 text-xs text-muted">Eres tú</span>
                       ) : (

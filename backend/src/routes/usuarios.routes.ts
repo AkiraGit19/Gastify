@@ -132,6 +132,14 @@ usuariosRouter.patch("/:id", async (req, res) => {
     return res.status(400).json({ error: "No puedes dar de baja tu propia cuenta" });
   }
 
+  // This route resets a *teammate's* password with no current-password check — that's fine when
+  // it's someone else's account, but for your own account it would let a hijacked/stolen session
+  // token silently take over the account by setting a new password with no re-authentication.
+  // Self password changes must go through PATCH /usuarios/me, which requires currentPassword.
+  if (existing.id === req.user!.id && parsed.data.password) {
+    return res.status(400).json({ error: "Para cambiar tu propia contraseña usa Mi perfil, no esta pantalla" });
+  }
+
   if (parsed.data.aprobadorId) {
     const aprobador = await db.usuario.findFirst({ where: { id: parsed.data.aprobadorId, empresaId } });
     if (!aprobador) return res.status(400).json({ error: "Aprobador inválido" });
