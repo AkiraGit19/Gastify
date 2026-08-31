@@ -89,16 +89,6 @@ async function startDraft(usuarioId: string, phone: string, mediaId: string) {
 
   const imagenUrl = await storeReceiptImage(buffer);
 
-  if (ocr.rucEmisor && ocr.numeroComprobante) {
-    const duplicado = await db.gasto.findFirst({
-      where: { rucEmisor: ocr.rucEmisor, numeroComprobante: ocr.numeroComprobante },
-    });
-    if (duplicado) {
-      await sendText(phone, "Esta boleta ya fue registrada antes en el sistema. No se creó un gasto nuevo.");
-      return;
-    }
-  }
-
   const draft: Draft = {
     monto: ocr.monto,
     fecha: ocr.fecha,
@@ -188,6 +178,20 @@ async function askCategoria(usuarioId: string, phone: string, draft: Draft) {
 }
 
 async function finalizeGasto(usuario: { id: string; empresaId: string | null; aprobadorId: string | null }, phone: string, draft: Draft) {
+  // Checked here, against the final confirmed data, not right after OCR — the employee fills in
+  // ruc/comprobante by hand whenever OCR can't read them, so checking pre-correction values would
+  // silently skip this check for every manually-entered receipt.
+  if (draft.rucEmisor && draft.numeroComprobante) {
+    const duplicado = await db.gasto.findFirst({
+      where: { rucEmisor: draft.rucEmisor, numeroComprobante: draft.numeroComprobante },
+    });
+    if (duplicado) {
+      await db.conversacionWA.delete({ where: { usuarioId: usuario.id } });
+      await sendText(phone, "Esta boleta ya fue registrada antes en el sistema. No se creó un gasto nuevo.");
+      return;
+    }
+  }
+
   const sunat = draft.rucEmisor ? await validarRuc(draft.rucEmisor) : { disponible: false };
 
   const gasto = await db.gasto.create({

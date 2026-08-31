@@ -6,11 +6,19 @@ import { v2 as cloudinary } from "cloudinary";
 const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
 const CLOUDINARY_URL = process.env.CLOUDINARY_URL;
 const UPLOADS_DIR = path.resolve(import.meta.dirname, "../../uploads");
+const TEST_MEDIA_DIR = path.resolve(import.meta.dirname, "../../test-media");
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 4000}`;
 
 if (CLOUDINARY_URL) cloudinary.config({ secure: true });
 
 export async function downloadWhatsAppMedia(mediaId: string): Promise<Buffer> {
+  if (!WHATSAPP_API_TOKEN) {
+    // ponytail: no Meta credentials yet — read a local test image instead of calling graph.facebook.com.
+    // Send a fake webhook with image.id = filename under backend/test-media/. Real WhatsApp media ids
+    // are opaque numeric strings, never filenames, so this path is dead once WHATSAPP_API_TOKEN is set.
+    return fs.readFile(path.join(TEST_MEDIA_DIR, mediaId));
+  }
+
   const metaResp = await fetch(`https://graph.facebook.com/v20.0/${mediaId}`, {
     headers: { Authorization: `Bearer ${WHATSAPP_API_TOKEN}` },
   });

@@ -6,3 +6,5 @@ dist/
 *.log
 .idea/
 *.tsbuildinfo
+backend/uploads/
+backend/test-media/
