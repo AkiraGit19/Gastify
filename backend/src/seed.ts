@@ -1,17 +1,21 @@
 import "dotenv/config";
 import { db } from "./db.js";
+import { hashPassword } from "./auth.js";
 import type { Categoria, EstadoGasto } from "@prisma/client";
+
+const SEED_PASSWORD = "gastify2026";
 
 async function main() {
   await db.conversacionWA.deleteMany();
   await db.aprobacion.deleteMany();
   await db.gasto.deleteMany();
-  await db.magicLink.deleteMany();
   await db.usuario.deleteMany();
   await db.empresa.deleteMany();
 
+  const passwordHash = await hashPassword(SEED_PASSWORD);
+
   await db.usuario.create({
-    data: { nombre: "Tú (dueño de Gastify)", email: "owner@gastify.test", rol: "super_admin", telefonoWhatsapp: null },
+    data: { nombre: "Tú (dueño de Gastify)", email: "owner@gastify.test", rol: "super_admin", telefonoWhatsapp: null, passwordHash },
   });
 
   const acme = await db.empresa.create({
@@ -19,11 +23,11 @@ async function main() {
   });
 
   const admin = await db.usuario.create({
-    data: { empresaId: acme.id, nombre: "Akira Sánchez", email: "akirasan.office@gmail.com", rol: "admin", telefonoWhatsapp: "51900000001" },
+    data: { empresaId: acme.id, nombre: "Akira Sánchez", email: "akirasan.office@gmail.com", rol: "admin", telefonoWhatsapp: "51900000001", passwordHash },
   });
 
   const aprobador = await db.usuario.create({
-    data: { empresaId: acme.id, nombre: "Carlos Mendoza", email: "carlos@acme.test", rol: "aprobador", telefonoWhatsapp: "51900000002" },
+    data: { empresaId: acme.id, nombre: "Carlos Mendoza", email: "carlos@acme.test", rol: "aprobador", telefonoWhatsapp: "51900000002", passwordHash },
   });
 
   const empleado1 = await db.usuario.create({
@@ -34,6 +38,7 @@ async function main() {
       rol: "empleado",
       telefonoWhatsapp: "51900000003",
       aprobadorId: aprobador.id,
+      passwordHash,
     },
   });
 
@@ -45,6 +50,7 @@ async function main() {
       rol: "empleado",
       telefonoWhatsapp: "51900000004",
       aprobadorId: aprobador.id,
+      passwordHash,
     },
   });
 
@@ -115,7 +121,7 @@ async function main() {
   }
 
   console.log("Seed listo.");
-  console.log("Login con magic link (revisa la consola del backend para el link) usando estos emails:");
+  console.log(`Login con email + contraseña "${SEED_PASSWORD}" usando estos emails:`);
   console.log(`  super_admin: owner@gastify.test`);
   console.log(`  admin:     ${admin.email}`);
   console.log(`  aprobador: ${aprobador.email}`);

@@ -34,6 +34,7 @@ export function SuperAdminHome() {
         ruc: form.get("ruc"),
         adminNombre: form.get("adminNombre"),
         adminEmail: form.get("adminEmail"),
+        adminPassword: form.get("adminPassword"),
       });
       setShowForm(false);
       load();
@@ -91,6 +92,14 @@ export function SuperAdminHome() {
             <input name="ruc" required placeholder="RUC" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
             <input name="adminNombre" required placeholder="Nombre del admin" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
             <input name="adminEmail" type="email" required placeholder="Email del admin" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
+            <input
+              name="adminPassword"
+              type="password"
+              required
+              minLength={8}
+              placeholder="Contraseña inicial del admin (mín. 8 caracteres)"
+              className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm"
+            />
             {error && <p className="text-sm text-stamp-rechazado">{error}</p>}
             <button type="submit" className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white">
               Crear empresa

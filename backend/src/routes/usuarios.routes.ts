@@ -2,14 +2,31 @@ import { Router } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "../db.js";
-import { requireAuth, requireRole } from "../auth.js";
+import { requireAuth, requireRole, hashPassword, verifyPassword } from "../auth.js";
 
 export const usuariosRouter = Router();
 
-const meSchema = z.object({
-  nombre: z.string().min(1).optional(),
-  telefonoWhatsapp: z.string().min(8).nullable().optional(),
-});
+const SELECT_PUBLICO = {
+  id: true,
+  nombre: true,
+  email: true,
+  telefonoWhatsapp: true,
+  rol: true,
+  activo: true,
+  aprobadorId: true,
+} as const;
+
+const meSchema = z
+  .object({
+    nombre: z.string().min(1).optional(),
+    telefonoWhatsapp: z.string().min(8).nullable().optional(),
+    currentPassword: z.string().optional(),
+    newPassword: z.string().min(8).optional(),
+  })
+  .refine((d) => !d.newPassword || d.currentPassword, {
+    message: "Debes indicar tu contraseña actual para cambiarla",
+    path: ["currentPassword"],
+  });
 
 // Any authenticated role can read/edit their own name and phone — scoped to req.user.id, never
 // a param, so there's no way to reach another user's row through this endpoint.
@@ -25,10 +42,20 @@ usuariosRouter.patch("/me", requireAuth, async (req, res) => {
   const parsed = meSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
+  const { currentPassword, newPassword, ...rest } = parsed.data;
+  const data: Prisma.UsuarioUpdateInput = { ...rest };
+
+  if (newPassword) {
+    const usuario = await db.usuario.findUniqueOrThrow({ where: { id: req.user!.id } });
+    const valido = await verifyPassword(currentPassword!, usuario.passwordHash);
+    if (!valido) return res.status(400).json({ error: "Contraseña actual incorrecta" });
+    data.passwordHash = await hashPassword(newPassword);
+  }
+
   try {
     const usuario = await db.usuario.update({
       where: { id: req.user!.id },
-      data: parsed.data,
+      data,
       select: { id: true, nombre: true, email: true, telefonoWhatsapp: true, rol: true },
     });
     res.json(usuario);
@@ -47,15 +74,7 @@ usuariosRouter.get("/", async (req, res) => {
   const usuarios = await db.usuario.findMany({
     where: { empresaId: req.user!.empresaId! },
     orderBy: { nombre: "asc" },
-    select: {
-      id: true,
-      nombre: true,
-      email: true,
-      telefonoWhatsapp: true,
-      rol: true,
-      activo: true,
-      aprobadorId: true,
-    },
+    select: SELECT_PUBLICO,
   });
   res.json(usuarios);
 });
@@ -66,6 +85,7 @@ const createSchema = z.object({
   telefonoWhatsapp: z.string().min(8),
   rol: z.enum(["empleado", "aprobador"]),
   aprobadorId: z.string().optional(),
+  password: z.string().min(8),
 });
 
 usuariosRouter.post("/", async (req, res) => {
@@ -73,15 +93,20 @@ usuariosRouter.post("/", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   const empresaId = req.user!.empresaId!;
+  const { password, ...rest } = parsed.data;
 
-  if (parsed.data.aprobadorId) {
+  if (rest.aprobadorId) {
     const aprobador = await db.usuario.findFirst({
-      where: { id: parsed.data.aprobadorId, empresaId },
+      where: { id: rest.aprobadorId, empresaId },
     });
     if (!aprobador) return res.status(400).json({ error: "Aprobador inválido" });
   }
 
-  const usuario = await db.usuario.create({ data: { ...parsed.data, empresaId } });
+  const passwordHash = await hashPassword(password);
+  const usuario = await db.usuario.create({
+    data: { ...rest, empresaId, passwordHash },
+    select: SELECT_PUBLICO,
+  });
   res.status(201).json(usuario);
 });
 
@@ -90,6 +115,7 @@ const updateSchema = z.object({
   rol: z.enum(["empleado", "aprobador"]).optional(),
   aprobadorId: z.string().nullable().optional(),
   activo: z.boolean().optional(),
+  password: z.string().min(8).optional(),
 });
 
 usuariosRouter.patch("/:id", async (req, res) => {
@@ -111,6 +137,12 @@ usuariosRouter.patch("/:id", async (req, res) => {
     if (!aprobador) return res.status(400).json({ error: "Aprobador inválido" });
   }
 
-  const usuario = await db.usuario.update({ where: { id: existing.id }, data: parsed.data });
+  const { password, ...rest } = parsed.data;
+  const data: Prisma.UsuarioUpdateInput = { ...rest };
+  // Admin resets a teammate's password directly (no email flow) — this is how a locked-out
+  // employee gets back in, since there's no self-service "forgot password" in v1.
+  if (password) data.passwordHash = await hashPassword(password);
+
+  const usuario = await db.usuario.update({ where: { id: existing.id }, data, select: SELECT_PUBLICO });
   res.json(usuario);
 });

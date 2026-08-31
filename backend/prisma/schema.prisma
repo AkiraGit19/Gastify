@@ -45,6 +45,7 @@ model Usuario {
   nombre           String
   telefonoWhatsapp String? @unique
   email            String  @unique
+  passwordHash     String
   rol              Rol
   activo           Boolean @default(true)
   aprobadorId      String?
@@ -53,7 +54,6 @@ model Usuario {
 
   gastos       Gasto[]
   aprobaciones Aprobacion[]
-  magicLinks   MagicLink[]
 
   @@index([empresaId])
 }
@@ -91,15 +91,6 @@ model Aprobacion {
   decision      Boolean
   fechaDecision DateTime  @default(now())
   comentario    String?
-}
-
-model MagicLink {
-  id        String   @id @default(cuid())
-  usuarioId String
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
-  token     String   @unique
-  expiraEn  DateTime
-  usado     Boolean  @default(false)
 }
 
 // Short-lived scratch space for the WhatsApp conversation state machine —

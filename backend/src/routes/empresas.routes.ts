@@ -1,9 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db.js";
-import { requireAuth, requireRole } from "../auth.js";
-import { createMagicLink } from "../auth.js";
-import { sendMagicLinkEmail } from "../email.js";
+import { requireAuth, requireRole, hashPassword } from "../auth.js";
 
 export const empresasRouter = Router();
 
@@ -22,28 +20,26 @@ const createSchema = z.object({
   ruc: z.string().min(8),
   adminNombre: z.string().min(1),
   adminEmail: z.string().email(),
+  adminPassword: z.string().min(8),
 });
 
 empresasRouter.post("/", async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  const { razonSocial, ruc, adminNombre, adminEmail } = parsed.data;
+  const { razonSocial, ruc, adminNombre, adminEmail, adminPassword } = parsed.data;
+  const passwordHash = await hashPassword(adminPassword);
 
   const empresa = await db.empresa.create({
     data: {
       razonSocial,
       ruc,
       usuarios: {
-        create: { nombre: adminNombre, email: adminEmail, rol: "admin" },
+        create: { nombre: adminNombre, email: adminEmail, rol: "admin", passwordHash },
       },
     },
-    include: { usuarios: true },
+    include: { usuarios: { select: { id: true, nombre: true, email: true, rol: true } } },
   });
-
-  const admin = empresa.usuarios[0];
-  const token = await createMagicLink(admin.id);
-  await sendMagicLinkEmail(admin.email, token);
 
   res.status(201).json(empresa);
 });

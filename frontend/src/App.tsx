@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
-import { VerifyMagicLink } from "./pages/VerifyMagicLink";
 import { Dashboard } from "./pages/Dashboard";
 import { Gastos } from "./pages/Gastos";
 import { Aprobaciones } from "./pages/Aprobaciones";
@@ -31,7 +30,6 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/auth/verify" element={<VerifyMagicLink />} />
           <Route element={<ProtectedLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/gastos" element={<Gastos />} />

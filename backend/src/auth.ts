@@ -1,7 +1,6 @@
-import crypto from "node:crypto";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
-import { db } from "./db.js";
 import type { Rol } from "@prisma/client";
 
 // A hardcoded fallback here would mean anyone reading this public repo could forge a super_admin JWT.
@@ -12,7 +11,7 @@ function requireJwtSecret(): string {
 }
 
 const JWT_SECRET = requireJwtSecret();
-const MAGIC_LINK_TTL_MINUTES = 15;
+const BCRYPT_ROUNDS = 12;
 
 export interface SessionUser {
   id: string;
@@ -20,19 +19,12 @@ export interface SessionUser {
   empresaId: string | null;
 }
 
-export async function createMagicLink(usuarioId: string) {
-  const token = crypto.randomBytes(32).toString("hex");
-  const expiraEn = new Date(Date.now() + MAGIC_LINK_TTL_MINUTES * 60_000);
-  await db.magicLink.create({ data: { usuarioId, token, expiraEn } });
-  return token;
+export function hashPassword(password: string) {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
-export async function consumeMagicLink(token: string): Promise<SessionUser | null> {
-  const link = await db.magicLink.findUnique({ where: { token }, include: { usuario: true } });
-  if (!link || link.usado || link.expiraEn < new Date()) return null;
-
-  await db.magicLink.update({ where: { id: link.id }, data: { usado: true } });
-  return { id: link.usuario.id, rol: link.usuario.rol, empresaId: link.usuario.empresaId };
+export function verifyPassword(password: string, hash: string) {
+  return bcrypt.compare(password, hash);
 }
 
 export function signSession(user: SessionUser) {

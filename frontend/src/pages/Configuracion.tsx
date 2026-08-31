@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Building2, User } from "lucide-react";
+import { Building2, User, KeyRound } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import type { Empresa } from "../lib/types";
 import { useAuth } from "../lib/auth";
@@ -19,7 +19,62 @@ export function Configuracion() {
       {user?.rol === "admin" && <PerfilEmpresa />}
 
       <PerfilPersonal nombreInicial={user?.nombre ?? ""} telefonoInicial={null} onGuardado={(nombre) => updateUser({ nombre })} />
+
+      <CambiarContrasena />
     </div>
+  );
+}
+
+function CambiarContrasena() {
+  const [error, setError] = useState("");
+  const [ok, setOk] = useState(false);
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setOk(false);
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    try {
+      await api.patch("/usuarios/me", {
+        currentPassword: data.get("currentPassword"),
+        newPassword: data.get("newPassword"),
+      });
+      setOk(true);
+      form.reset();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo cambiar la contraseña");
+    }
+  }
+
+  return (
+    <section className="receipt-card flex flex-col gap-4 p-6">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand">
+          <KeyRound size={16} />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Cambiar contraseña</h2>
+          <p className="text-xs text-muted">Necesitas tu contraseña actual para poner una nueva.</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:max-w-sm">
+        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+          Contraseña actual
+          <input name="currentPassword" type="password" required className={inputClass} />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+          Contraseña nueva
+          <input name="newPassword" type="password" required minLength={8} className={inputClass} />
+        </label>
+        {error && <p className="text-sm text-stamp-rechazado">{error}</p>}
+        {ok && <p className="text-sm text-stamp-aprobado">Contraseña actualizada.</p>}
+        <button type="submit" className="w-fit rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white">
+          Cambiar contraseña
+        </button>
+      </form>
+    </section>
   );
 }
 

@@ -15,6 +15,7 @@ export function Equipo() {
   const { user } = useAuth();
   const [usuarios, setUsuarios] = useState<Usuario[] | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [resetTarget, setResetTarget] = useState<Usuario | null>(null);
   const [error, setError] = useState("");
 
   function load() {
@@ -36,6 +37,7 @@ export function Equipo() {
         telefonoWhatsapp: form.get("telefonoWhatsapp"),
         rol: form.get("rol"),
         aprobadorId: form.get("aprobadorId") || undefined,
+        password: form.get("password"),
       });
       setShowForm(false);
       load();
@@ -51,6 +53,19 @@ export function Equipo() {
       load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo actualizar el usuario");
+    }
+  }
+
+  async function handleReset(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!resetTarget) return;
+    setError("");
+    const form = new FormData(e.currentTarget);
+    try {
+      await api.patch(`/usuarios/${resetTarget.id}`, { password: form.get("password") });
+      setResetTarget(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo restablecer la contraseña");
     }
   }
 
@@ -75,6 +90,14 @@ export function Equipo() {
             <input name="nombre" required placeholder="Nombre completo" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
             <input name="email" type="email" required placeholder="Correo" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
             <input name="telefonoWhatsapp" required placeholder="Teléfono WhatsApp (51999...)" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
+            <input
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              placeholder="Contraseña inicial (mín. 8 caracteres)"
+              className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm"
+            />
             <select name="rol" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm">
               <option value="empleado">Empleado</option>
               <option value="aprobador">Aprobador</option>
@@ -93,7 +116,27 @@ export function Equipo() {
         </Modal>
       )}
 
-      {error && <p className="border-b border-ink/8 py-3 text-sm text-stamp-rechazado">{error}</p>}
+      {resetTarget && (
+        <Modal title={`Restablecer contraseña — ${resetTarget.nombre}`} onClose={() => setResetTarget(null)}>
+          <form onSubmit={handleReset} className="grid grid-cols-1 gap-3">
+            <input
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              autoFocus
+              placeholder="Nueva contraseña (mín. 8 caracteres)"
+              className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm"
+            />
+            {error && <p className="text-sm text-stamp-rechazado">{error}</p>}
+            <button type="submit" className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white">
+              Guardar
+            </button>
+          </form>
+        </Modal>
+      )}
+
+      {error && !showForm && !resetTarget && <p className="border-b border-ink/8 py-3 text-sm text-stamp-rechazado">{error}</p>}
 
       <div className="pt-6">
         <div className="overflow-x-auto">
@@ -127,16 +170,24 @@ export function Equipo() {
                   </td>
                   <td className="py-3 pr-4 text-muted">{u.telefonoWhatsapp}</td>
                   <td className="py-3 pr-0">
-                    {u.id === user?.id ? (
-                      <span className="text-xs text-muted">Eres tú</span>
-                    ) : (
+                    <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() => toggleActivo(u)}
-                        className={`rounded-md px-3 py-1.5 text-xs font-semibold ${u.activo ? "text-stamp-rechazado" : "text-stamp-aprobado"}`}
+                        onClick={() => setResetTarget(u)}
+                        className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink"
                       >
-                        {u.activo ? "Dar de baja" : "Reactivar"}
+                        Restablecer contraseña
                       </button>
-                    )}
+                      {u.id === user?.id ? (
+                        <span className="px-3 py-1.5 text-xs text-muted">Eres tú</span>
+                      ) : (
+                        <button
+                          onClick={() => toggleActivo(u)}
+                          className={`rounded-md px-3 py-1.5 text-xs font-semibold ${u.activo ? "text-stamp-rechazado" : "text-stamp-aprobado"}`}
+                        >
+                          {u.activo ? "Dar de baja" : "Reactivar"}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
