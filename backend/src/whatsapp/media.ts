@@ -16,7 +16,12 @@ export async function downloadWhatsAppMedia(mediaId: string): Promise<Buffer> {
     // ponytail: no Meta credentials yet — read a local test image instead of calling graph.facebook.com.
     // Send a fake webhook with image.id = filename under backend/test-media/. Real WhatsApp media ids
     // are opaque numeric strings, never filenames, so this path is dead once WHATSAPP_API_TOKEN is set.
-    return fs.readFile(path.join(TEST_MEDIA_DIR, mediaId));
+    // mediaId comes straight off the webhook body, so it's treated as attacker-controlled here even
+    // in dev — reject anything but a plain filename before it touches the filesystem.
+    if (!/^[A-Za-z0-9_.-]+$/.test(mediaId)) throw new Error("mediaId inválido");
+    const resolved = path.resolve(TEST_MEDIA_DIR, mediaId);
+    if (!resolved.startsWith(TEST_MEDIA_DIR + path.sep)) throw new Error("mediaId inválido");
+    return fs.readFile(resolved);
   }
 
   const metaResp = await fetch(`https://graph.facebook.com/v20.0/${mediaId}`, {
