@@ -71,6 +71,11 @@ usuariosRouter.patch("/:id", async (req, res) => {
     return res.status(400).json({ error: "No puedes dar de baja tu propia cuenta" });
   }
 
+  if (parsed.data.aprobadorId) {
+    const aprobador = await db.usuario.findFirst({ where: { id: parsed.data.aprobadorId, empresaId } });
+    if (!aprobador) return res.status(400).json({ error: "Aprobador inválido" });
+  }
+
   const usuario = await db.usuario.update({ where: { id: existing.id }, data: parsed.data });
   res.json(usuario);
 });

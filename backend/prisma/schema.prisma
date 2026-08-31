@@ -77,7 +77,7 @@ model Gasto {
 
   aprobaciones Aprobacion[]
 
-  @@unique([rucEmisor, numeroComprobante])
+  @@unique([empresaId, rucEmisor, numeroComprobante])
   @@index([empresaId])
   @@index([usuarioId])
 }

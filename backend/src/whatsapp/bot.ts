@@ -183,7 +183,7 @@ async function finalizeGasto(usuario: { id: string; empresaId: string | null; ap
   // silently skip this check for every manually-entered receipt.
   if (draft.rucEmisor && draft.numeroComprobante) {
     const duplicado = await db.gasto.findFirst({
-      where: { rucEmisor: draft.rucEmisor, numeroComprobante: draft.numeroComprobante },
+      where: { empresaId: usuario.empresaId!, rucEmisor: draft.rucEmisor, numeroComprobante: draft.numeroComprobante },
     });
     if (duplicado) {
       await db.conversacionWA.delete({ where: { usuarioId: usuario.id } });
