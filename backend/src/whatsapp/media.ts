@@ -1,15 +1,14 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { v2 as cloudinary } from "cloudinary";
 
 const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
-const CLOUDINARY_URL = process.env.CLOUDINARY_URL;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_BUCKET = "boletas";
 const UPLOADS_DIR = path.resolve(import.meta.dirname, "../../uploads");
 const TEST_MEDIA_DIR = path.resolve(import.meta.dirname, "../../test-media");
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 4000}`;
-
-if (CLOUDINARY_URL) cloudinary.config({ secure: true });
 
 export async function downloadWhatsAppMedia(mediaId: string): Promise<Buffer> {
   if (!WHATSAPP_API_TOKEN) {
@@ -36,19 +35,23 @@ export async function downloadWhatsAppMedia(mediaId: string): Promise<Buffer> {
 }
 
 export async function storeReceiptImage(buffer: Buffer): Promise<string> {
-  if (CLOUDINARY_URL) {
-    const upload = await new Promise<{ secure_url: string }>((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream({ folder: "gastify/boletas" }, (err, result) => {
-          if (err || !result) reject(err);
-          else resolve(result);
-        })
-        .end(buffer);
+  if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    const filename = `${crypto.randomUUID()}.jpg`;
+    const resp = await fetch(`${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${filename}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "image/jpeg",
+        "x-upsert": "false",
+      },
+      body: new Uint8Array(buffer),
     });
-    return upload.secure_url;
+    if (!resp.ok) throw new Error(`No se pudo subir la imagen a Supabase Storage: ${await resp.text()}`);
+    return `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${filename}`;
   }
 
-  // ponytail: dev fallback, no Cloudinary configured — write to local disk served by /uploads.
+  // ponytail: dev fallback, no Supabase Storage configured — write to local disk served by /uploads.
+  // Not appropriate for production (Render's free tier has no persistent disk), only for local dev.
   await fs.mkdir(UPLOADS_DIR, { recursive: true });
   const filename = `${crypto.randomUUID()}.jpg`;
   await fs.writeFile(path.join(UPLOADS_DIR, filename), buffer);
