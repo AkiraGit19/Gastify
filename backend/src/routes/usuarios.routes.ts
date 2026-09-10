@@ -1,11 +1,12 @@
-import { Router } from "express";
+import { asyncRouter } from "../async-router.js";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "../db.js";
 import crypto from "node:crypto";
-import { requireAuth, requireRole, hashPassword, verifyPassword, signPayload } from "../auth.js";
+import { requireAuth, requireRole, hashPassword, verifyPassword } from "../auth.js";
+import { crearLinkInvitacion } from "../invitaciones.js";
 
-export const usuariosRouter = Router();
+export const usuariosRouter = asyncRouter();
 
 const SELECT_PUBLICO = {
   id: true,
@@ -172,14 +173,5 @@ usuariosRouter.post("/:id/invitacion", async (req, res) => {
   if (!usuario) return res.status(404).json({ error: "No encontrado" });
   if (!usuario.activo) return res.status(400).json({ error: "Esa cuenta está dada de baja" });
 
-  // El link queda inutilizable en cuanto se usa: al fijar la contraseña cambia el hash y esta
-  // huella deja de coincidir. Es de un solo uso sin agregar una columna a la base.
-  const token = signPayload(
-    "invitacion",
-    { usuarioId: usuario.id, huella: usuario.passwordHash.slice(-16) },
-    7 * 24 * 60 * 60,
-  );
-
-  const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
-  res.json({ url: `${frontendUrl}/invitacion?token=${encodeURIComponent(token)}`, expiraEnDias: 7 });
+  res.json(crearLinkInvitacion(usuario));
 });

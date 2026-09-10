@@ -7,6 +7,9 @@ export interface OcrResult {
   proveedor?: string;
   rucEmisor?: string;
   numeroComprobante?: string;
+  // El IGV impreso, cuando la factura lo desglosa. Fuera de camposFaltantes a propósito: no es
+  // un dato que se le pida al empleado, se deriva del total si no se pudo leer (ver comprobante.ts).
+  igv?: number;
   camposFaltantes: string[];
   legible: boolean;
 }
@@ -28,8 +31,9 @@ const BOLETA_SCHEMA = {
     proveedor: { type: ["string", "null"], description: "Razón social o nombre comercial del emisor" },
     rucEmisor: { type: ["string", "null"], description: "RUC del emisor: exactamente 11 dígitos, sin espacios" },
     numeroComprobante: { type: ["string", "null"], description: "Serie y correlativo, ej. F001-00001234 o B001-123" },
+    igv: { type: ["number", "null"], description: "Monto del IGV desglosado, solo si el comprobante lo muestra como línea aparte. null si no aparece" },
   },
-  required: ["legible", "monto", "fecha", "proveedor", "rucEmisor", "numeroComprobante"],
+  required: ["legible", "monto", "fecha", "proveedor", "rucEmisor", "numeroComprobante", "igv"],
   additionalProperties: false,
 } as const;
 
@@ -40,6 +44,7 @@ interface Boleta {
   proveedor: string | null;
   rucEmisor: string | null;
   numeroComprobante: string | null;
+  igv: number | null;
 }
 
 const PROMPT = `Eres un lector de comprobantes de pago peruanos (boletas, facturas, tickets, recibos).
@@ -55,7 +60,9 @@ Extrae los datos de la imagen. Reglas, en orden de importancia:
 3. El RUC del emisor tiene 11 dígitos y empieza en 10, 15, 17 o 20. Si el comprobante trae
    dos RUC (emisor y cliente), toma el del emisor, que va en la cabecera junto al nombre
    del negocio. Si no distingues cuál es cuál, devuelve null.
-4. Devuelve legible: false solo si la imagen no es un comprobante, o está tan borrosa,
+4. El IGV solo se devuelve si el comprobante lo muestra desglosado como línea propia
+   ("IGV", "I.G.V. 18%"). Si solo hay un total, devuelve null: no lo calcules tú.
+5. Devuelve legible: false solo si la imagen no es un comprobante, o está tan borrosa,
    oscura o cortada que no se puede leer nada. Una boleta fea pero legible es legible.`;
 
 // El SDK acepta ANTHROPIC_API_KEY (header x-api-key) o ANTHROPIC_AUTH_TOKEN (Bearer), pero
@@ -91,6 +98,7 @@ export function toResult(datos: Boleta): OcrResult {
   if (!datos.legible) return { camposFaltantes: [...CAMPOS], legible: false };
 
   const result: OcrResult = { camposFaltantes: [], legible: true };
+  if (datos.igv != null) result.igv = datos.igv;
   for (const campo of CAMPOS) {
     const valor = datos[campo];
     if (valor === null || valor === undefined || valor === "") result.camposFaltantes.push(campo);

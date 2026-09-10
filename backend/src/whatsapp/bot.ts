@@ -1,6 +1,6 @@
 import { db } from "../db.js";
 import { readReceipt } from "./ocr.js";
-import { crearGasto, parseFecha } from "../gastos/crear.js";
+import { crearGasto, parseFecha, hashImagen } from "../gastos/crear.js";
 import { downloadWhatsAppMedia, storeReceiptImage } from "./media.js";
 import { sendText, sendButtons } from "./send.js";
 
@@ -19,7 +19,9 @@ interface Draft {
   proveedor?: string;
   rucEmisor?: string;
   numeroComprobante?: string;
+  igvLeido?: number;
   imagenUrl?: string;
+  imagenHash?: string;
   categoria?: string;
   camposPendientes: string[];
 }
@@ -87,6 +89,7 @@ async function startDraft(usuarioId: string, phone: string, mediaId: string) {
     return;
   }
 
+  const imagenHash = hashImagen(buffer);
   const imagenUrl = await storeReceiptImage(buffer);
 
   const draft: Draft = {
@@ -95,7 +98,9 @@ async function startDraft(usuarioId: string, phone: string, mediaId: string) {
     proveedor: ocr.proveedor,
     rucEmisor: ocr.rucEmisor,
     numeroComprobante: ocr.numeroComprobante,
+    igvLeido: ocr.igv,
     imagenUrl,
+    imagenHash,
     camposPendientes: ocr.camposFaltantes,
   };
 
@@ -184,14 +189,16 @@ async function finalizeGasto(usuario: { id: string; empresaId: string | null; ap
     proveedor: draft.proveedor,
     rucEmisor: draft.rucEmisor,
     numeroComprobante: draft.numeroComprobante,
+    igvLeido: draft.igvLeido,
     imagenUrl: draft.imagenUrl!,
+    imagenHash: draft.imagenHash,
     categoria: draft.categoria!,
   });
 
   await db.conversacionWA.delete({ where: { usuarioId: usuario.id } });
 
   if (!resultado.ok) {
-    await sendText(phone, "Esta boleta ya fue registrada antes en el sistema. No se creó un gasto nuevo.");
+    await sendText(phone, `${resultado.detalle} No se creó un gasto nuevo.`);
     return;
   }
 

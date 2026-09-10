@@ -13,6 +13,9 @@
   --color-stamp-validando: #2fa0d1;
   --color-stamp-aprobado: #2f9e5b;
   --color-stamp-rechazado: #c23b32;
+  /* Pagado cierra el ciclo: se distingue de aprobado porque la plata ya salió de caja. */
+  --color-stamp-pagado: #1f7a4d;
+  --color-stamp-anulado: #94a3ad;
 
   --color-cat-1: #6ea8d8;
   --color-cat-2: #a996f0;

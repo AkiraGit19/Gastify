@@ -63,3 +63,25 @@ Necesita credenciales reales para activarse (mientras tanto degrada con gracia, 
 - Base de datos: Neon (Postgres serverless, free tier sin expiración)
 - Frontend: Render (free static site)
 - Imágenes: Cloudinary (free tier)
+
+## Chequeos
+
+```bash
+cd backend
+npx tsx src/verificar.ts            # lógica pura: OCR, tokens, IGV, CSV, fechas. Sin red ni base.
+npx tsx src/verificar.ts ../*.jpg   # lee boletas reales con la API (~2 centavos por foto)
+
+PORT=4100 npx tsx src/index.ts      # en otra terminal
+npx tsx src/verificar-e2e.ts        # extremo a extremo contra servidor y base vivos
+```
+
+El e2e es repetible: cada corrida usa correos y bytes de imagen distintos, y borra lo que creó.
+
+## Notas para Perú
+
+- **Solo las facturas dan crédito fiscal.** Las boletas de venta no. El tipo de comprobante se
+  infiere de la serie (`F001` factura, `B001` boleta, `R001` recibo por honorarios) y el aprobador
+  lo corrige si hace falta. El IGV solo se calcula sobre facturas.
+- **Bancarización:** los gastos sobre S/ 2,000 salen marcados en el CSV, porque SUNAT exige medio
+  de pago bancario para aceptarlos como deducibles.
+- **El CSV** usa BOM, `;` como separador y coma decimal: es lo que espera el Excel en español.

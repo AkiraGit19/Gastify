@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
-import { Router, type Request, type Response, type NextFunction } from "express";
+import { type Request, type Response, type NextFunction } from "express";
+import { asyncRouter } from "../async-router.js";
 import { handleIncomingMessage } from "../whatsapp/bot.js";
 
-export const whatsappRouter = Router();
+export const whatsappRouter = asyncRouter();
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN ?? "dev-verify-token";
 const APP_SECRET = process.env.WHATSAPP_APP_SECRET;

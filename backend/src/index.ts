@@ -30,6 +30,15 @@ app.use("/usuarios", usuariosRouter);
 app.use("/gastos", gastosRouter);
 app.use("/whatsapp", whatsappRouter);
 
+// Última red: cualquier error que escape de un handler termina acá en vez de tumbar el proceso.
+// Los cuatro argumentos no son decorativos — así es como Express reconoce un middleware de errores.
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("[error no manejado]", err);
+  // Si la respuesta ya empezó a enviarse no se puede cambiar el status; al menos queda el log.
+  if (res.headersSent) return;
+  res.status(500).json({ error: "Ocurrió un error inesperado. Vuelve a intentarlo." });
+});
+
 export default app;
 
 // Vercel imports this file as a serverless function and calls the exported app directly —

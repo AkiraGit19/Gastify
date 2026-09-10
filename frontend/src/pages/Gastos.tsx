@@ -1,20 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, ChevronDown, ChevronLeft, ChevronRight, Tag, CalendarClock, Search } from "lucide-react";
-import { api, apiUrl } from "../lib/api";
+import { Download, ChevronDown, ChevronLeft, ChevronRight, Tag, CalendarClock, Search, Pencil, Ban, Wallet } from "lucide-react";
+import { api, apiUrl, ApiError } from "../lib/api";
 import type { Gasto } from "../lib/types";
-import { CATEGORIA_LABEL } from "../lib/types";
+import { CATEGORIA_LABEL, TIPO_COMPROBANTE_LABEL } from "../lib/types";
 import { StatusPill } from "../components/StatusPill";
 import { ReceiptViewer } from "../components/ReceiptViewer";
+import { EditarGasto } from "../components/EditarGasto";
+import { Modal } from "../components/Modal";
 import { relativeDate, normalizeSearch } from "../lib/format";
 import { useAuth } from "../lib/auth";
 
-const ESTADOS = ["pendiente", "pendiente_validacion", "aprobado", "rechazado"] as const;
+const ESTADOS = ["pendiente", "pendiente_validacion", "aprobado", "pagado", "rechazado", "anulado"] as const;
 const ESTADO_LABEL: Record<string, string> = {
   pendiente: "Pendiente",
   pendiente_validacion: "Validando",
   aprobado: "Aprobado",
+  pagado: "Pagado",
   rechazado: "Rechazado",
+  anulado: "Anulado",
 };
+
+// Un gasto pagado o anulado ya está cerrado; el backend rechaza editarlo, así que no se ofrece.
+const EDITABLES = ["pendiente", "pendiente_validacion", "aprobado", "rechazado"];
 
 const PAGE_SIZE = 12;
 
@@ -56,6 +63,14 @@ export function Gastos() {
   const [categoria, setCategoria] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [version, setVersion] = useState(0);
+  const [editando, setEditando] = useState<Gasto | null>(null);
+  const [anulando, setAnulando] = useState<Gasto | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
+  const [error, setError] = useState("");
+
+  const recargar = () => setVersion((v) => v + 1);
 
   useEffect(() => {
     const qs = new URLSearchParams();
@@ -63,9 +78,12 @@ export function Gastos() {
     if (categoria) qs.set("categoria", categoria);
     setGastos(null);
     api.get<Gasto[]>(`/gastos?${qs.toString()}`).then(setGastos);
-  }, [estado, categoria]);
+  }, [estado, categoria, version]);
 
   useEffect(() => setPage(1), [estado, categoria, search]);
+  // La selección es de la vista actual: al cambiar de filtro esos ids ya no están en pantalla y
+  // marcarlos como pagados sería un pago a ciegas.
+  useEffect(() => setSeleccion(new Set()), [estado, categoria, search, version]);
 
   const filtered = useMemo(() => {
     if (!gastos) return null;
@@ -91,6 +109,49 @@ export function Gastos() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  const esAdmin = user?.rol === "admin";
+  // El cobro se hace en lote y sobre lo aprobado, así que las casillas aparecen solo ahí:
+  // ofrecerlas en "todos los estados" invita a marcar como pagado algo que nadie aprobó.
+  const puedePagarLote = esAdmin && estado === "aprobado";
+
+  async function anular() {
+    if (!anulando) return;
+    setError("");
+    try {
+      await api.post(`/gastos/${anulando.id}/anular`, { motivo });
+      setAnulando(null);
+      setMotivo("");
+      recargar();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo anular");
+    }
+  }
+
+  async function marcarPagados() {
+    setError("");
+    try {
+      const res = await api.post<{ pagados: number; omitidos: number }>("/gastos/pagar", { ids: [...seleccion] });
+      if (res.omitidos > 0) setError(`${res.pagados} marcados como pagados. ${res.omitidos} se omitieron porque ya no estaban aprobados.`);
+      recargar();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo registrar el pago");
+    }
+  }
+
+  function alternar(id: string) {
+    setSeleccion((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const totalSeleccionado = useMemo(
+    () => (filtered ?? []).filter((g) => seleccion.has(g.id)).reduce((sum, g) => sum + Number(g.monto), 0),
+    [filtered, seleccion],
+  );
 
   const totalPages = Math.max(1, Math.ceil((filtered?.length ?? 0) / PAGE_SIZE));
   const pageItems = useMemo(() => {
@@ -144,6 +205,48 @@ export function Gastos() {
         </div>
       </div>
 
+      {error && <p className="border-b border-ink/8 py-3 text-sm text-stamp-rechazado">{error}</p>}
+
+      {editando && <EditarGasto gasto={editando} onClose={() => setEditando(null)} onSaved={recargar} />}
+
+      {anulando && (
+        <Modal title="Anular gasto" onClose={() => { setAnulando(null); setMotivo(""); }}>
+          <p className="mb-3 text-sm text-muted">
+            El gasto no se borra: queda registrado como anulado, con tu nombre y este motivo. Un
+            contador que revise la rendición dentro de seis meses va a leer justamente esto.
+          </p>
+          <input
+            autoFocus
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Ej: cargado dos veces por error"
+            className="w-full rounded-md border border-ink/12 bg-page px-3 py-2 text-sm"
+          />
+          <button
+            onClick={anular}
+            disabled={motivo.trim().length < 3}
+            className="mt-3 w-full rounded-md bg-stamp-rechazado px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            Anular gasto
+          </button>
+        </Modal>
+      )}
+
+      {puedePagarLote && seleccion.size > 0 && (
+        <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-ink/8 bg-surface py-3">
+          <p className="text-sm text-ink">
+            <span className="font-semibold">{seleccion.size}</span> seleccionados ·{" "}
+            <span className="font-semibold tabular-nums">S/ {totalSeleccionado.toFixed(2)}</span>
+          </p>
+          <button
+            onClick={marcarPagados}
+            className="flex items-center gap-2 rounded-md bg-stamp-pagado px-4 py-2 text-sm font-semibold text-white"
+          >
+            <Wallet size={15} /> Marcar como pagados
+          </button>
+        </div>
+      )}
+
       {!gastos ? (
         <p className="pt-6 text-sm text-muted">Cargando...</p>
       ) : (
@@ -152,18 +255,46 @@ export function Gastos() {
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-ink/8 text-xs text-muted">
+                {puedePagarLote && (
+                  <th className="w-8 py-2">
+                    <input
+                      type="checkbox"
+                      aria-label="Seleccionar todos"
+                      checked={pageItems.length > 0 && pageItems.every((g) => seleccion.has(g.id))}
+                      onChange={(e) =>
+                        setSeleccion((prev) => {
+                          const next = new Set(prev);
+                          pageItems.forEach((g) => (e.target.checked ? next.add(g.id) : next.delete(g.id)));
+                          return next;
+                        })
+                      }
+                    />
+                  </th>
+                )}
                 <th className="py-2 pr-4 font-medium">Colaborador</th>
                 <th className="py-2 pr-4 font-medium">Proveedor</th>
                 <th className="py-2 pr-4 font-medium">Categoría</th>
+                <th className="py-2 pr-4 font-medium">Comprobante</th>
                 <th className="py-2 pr-4 font-medium">Estado</th>
                 <th className="py-2 pr-4 font-medium">Monto</th>
                 <th className="py-2 pr-4 font-medium">Fecha</th>
                 <th className="w-8 py-2" />
+                <th className="py-2 pr-0 font-medium">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {pageItems.map((g) => (
                 <tr key={g.id} className="border-b border-ink/6 last:border-0">
+                  {puedePagarLote && (
+                    <td className="py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Seleccionar gasto de ${g.usuario.nombre}`}
+                        checked={seleccion.has(g.id)}
+                        onChange={() => alternar(g.id)}
+                      />
+                    </td>
+                  )}
                   <td className="py-3 pr-4">
                     <div className="flex items-center gap-2.5">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[11px] font-semibold text-brand">
@@ -174,19 +305,43 @@ export function Gastos() {
                   </td>
                   <td className="py-3 pr-4 text-muted">{g.razonSocialEmisor ?? "Sin confirmar"}</td>
                   <td className="py-3 pr-4 text-muted">{CATEGORIA_LABEL[g.categoria]}</td>
+                  <td className="py-3 pr-4 text-muted">{TIPO_COMPROBANTE_LABEL[g.tipoComprobante]}</td>
                   <td className="py-3 pr-4">
                     <StatusPill estado={g.estado} />
+                    {g.motivoAnulacion && <span className="block text-xs text-muted">{g.motivoAnulacion}</span>}
                   </td>
                   <td className="py-3 pr-4 font-medium tabular-nums text-ink">S/ {Number(g.monto).toFixed(2)}</td>
                   <td className="py-3 pr-4 text-muted">{relativeDate(g.fechaGasto)}</td>
                   <td className="py-3">
                     <ReceiptViewer url={g.imagenUrl} />
                   </td>
+                  <td className="py-3 pr-0">
+                    <div className="flex items-center justify-end gap-1">
+                      {EDITABLES.includes(g.estado) && (
+                        <button
+                          onClick={() => setEditando(g)}
+                          title="Corregir"
+                          className="rounded-md px-2 py-1.5 text-muted hover:text-ink"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      )}
+                      {esAdmin && g.estado !== "anulado" && g.estado !== "pagado" && (
+                        <button
+                          onClick={() => setAnulando(g)}
+                          title="Anular"
+                          className="rounded-md px-2 py-1.5 text-muted hover:text-stamp-rechazado"
+                        >
+                          <Ban size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
               {filtered?.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-muted">
+                  <td colSpan={puedePagarLote ? 10 : 9} className="py-10 text-center text-muted">
                     No hay gastos con estos filtros.
                   </td>
                 </tr>

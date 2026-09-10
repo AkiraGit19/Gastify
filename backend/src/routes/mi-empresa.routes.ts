@@ -1,10 +1,10 @@
-import { Router } from "express";
+import { asyncRouter } from "../async-router.js";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
 
-export const miEmpresaRouter = Router();
+export const miEmpresaRouter = asyncRouter();
 
 // Distinct from empresasRouter (super_admin, sees every company) — this is scoped to the admin's
 // own empresaId only, taken from the session, never a param.

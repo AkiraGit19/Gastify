@@ -3,6 +3,8 @@ export const ESTADO_CONFIG: Record<string, { label: string; color: string }> = {
   pendiente_validacion: { label: "Validando", color: "var(--color-stamp-validando)" },
   aprobado: { label: "Aprobado", color: "var(--color-stamp-aprobado)" },
   rechazado: { label: "Rechazado", color: "var(--color-stamp-rechazado)" },
+  pagado: { label: "Pagado", color: "var(--color-stamp-pagado)" },
+  anulado: { label: "Anulado", color: "var(--color-stamp-anulado)" },
 };
 
 export function StatusPill({ estado }: { estado: string }) {

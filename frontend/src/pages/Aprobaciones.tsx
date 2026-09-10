@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check, X, Pencil } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import type { Gasto } from "../lib/types";
-import { CATEGORIA_LABEL } from "../lib/types";
+import { CATEGORIA_LABEL, TIPO_COMPROBANTE_LABEL } from "../lib/types";
 import { StatusPill } from "../components/StatusPill";
 import { ReceiptViewer } from "../components/ReceiptViewer";
+import { EditarGasto } from "../components/EditarGasto";
 
 export function Aprobaciones() {
   const [gastos, setGastos] = useState<Gasto[] | null>(null);
   const [error, setError] = useState("");
+  const [editando, setEditando] = useState<Gasto | null>(null);
 
   function load() {
     // Include pendiente_validacion too: SUNAT being unreachable must never block a human decision
@@ -43,6 +45,8 @@ export function Aprobaciones() {
 
       {error && <p className="border-b border-ink/8 py-3 text-sm text-stamp-rechazado">{error}</p>}
 
+      {editando && <EditarGasto gasto={editando} onClose={() => setEditando(null)} onSaved={load} />}
+
       {!gastos ? (
         <p className="pt-6 text-sm text-muted">Cargando...</p>
       ) : (
@@ -54,6 +58,7 @@ export function Aprobaciones() {
                 <th className="py-2 pr-4 font-medium">Colaborador</th>
                 <th className="py-2 pr-4 font-medium">Proveedor</th>
                 <th className="py-2 pr-4 font-medium">Categoría</th>
+                <th className="py-2 pr-4 font-medium">Comprobante</th>
                 <th className="py-2 pr-4 font-medium">Estado</th>
                 <th className="py-2 pr-4 font-medium">Monto</th>
                 <th className="w-8 py-2" />
@@ -73,6 +78,12 @@ export function Aprobaciones() {
                   </td>
                   <td className="py-3 pr-4 text-muted">{g.razonSocialEmisor ?? "Sin confirmar"}</td>
                   <td className="py-3 pr-4 text-muted">{CATEGORIA_LABEL[g.categoria]}</td>
+                  <td className="py-3 pr-4 text-muted">
+                    {TIPO_COMPROBANTE_LABEL[g.tipoComprobante]}
+                    {g.tipoComprobante !== "factura" && (
+                      <span className="ml-1 text-xs text-stamp-pendiente" title="Sin crédito fiscal">·</span>
+                    )}
+                  </td>
                   <td className="py-3 pr-4">
                     <StatusPill estado={g.estado} />
                   </td>
@@ -94,13 +105,20 @@ export function Aprobaciones() {
                       >
                         <X size={14} /> Rechazar
                       </button>
+                      <button
+                        onClick={() => setEditando(g)}
+                        title="Corregir antes de decidir"
+                        className="flex items-center gap-1.5 rounded-md border border-ink/12 px-3 py-1.5 text-xs font-semibold text-muted transition-transform hover:scale-[1.03] hover:text-ink"
+                      >
+                        <Pencil size={14} /> Corregir
+                      </button>
                     </div>
                   </td>
                 </tr>
               ))}
               {gastos?.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-muted">
+                  <td colSpan={8} className="py-10 text-center text-muted">
                     No hay gastos pendientes de aprobación.
                   </td>
                 </tr>

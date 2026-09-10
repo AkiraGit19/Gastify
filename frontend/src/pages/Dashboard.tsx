@@ -20,6 +20,12 @@ const PERIODOS = [
   { value: "all", label: "Todo" },
 ];
 
+// Un gasto anulado fue un error de carga y uno rechazado no lo asume la empresa: ninguno de los
+// dos es plata gastada, así que no entran en los totales ni en el reparto por categoría.
+function esGastoReal(g: Gasto) {
+  return g.estado !== "anulado" && g.estado !== "rechazado";
+}
+
 function monthKey(dateStr: string) {
   const d = new Date(dateStr);
   return d.getFullYear() * 12 + d.getMonth();
@@ -75,8 +81,10 @@ export function Dashboard() {
       });
       return {
         label,
-        total: inMonth.reduce((s, g) => s + Number(g.monto), 0),
-        aprobado: inMonth.filter((g) => g.estado === "aprobado").reduce((s, g) => s + Number(g.monto), 0),
+        total: inMonth.filter(esGastoReal).reduce((s, g) => s + Number(g.monto), 0),
+        // "aprobado" incluye lo ya pagado: si no, la barra se vacía sola en cuanto el admin
+        // registra los reembolsos y parece que el mes se hubiera borrado.
+        aprobado: inMonth.filter((g) => g.estado === "aprobado" || g.estado === "pagado").reduce((s, g) => s + Number(g.monto), 0),
       };
     });
   }, [gastosAll]);
@@ -108,14 +116,19 @@ export function Dashboard() {
   if (!gastos) return <p className="text-sm text-muted">Cargando...</p>;
 
   const pendientes = gastos.filter((g) => g.estado === "pendiente" || g.estado === "pendiente_validacion");
-  const aprobados = gastos.filter((g) => g.estado === "aprobado");
+  // "Por pagar" es plata que la empresa ya debe pero todavía no desembolsó. Antes este KPI decía
+  // "Aprobado" y se vaciaba al registrar los pagos, como si el gasto se hubiera esfumado.
+  const porPagar = gastos.filter((g) => g.estado === "aprobado");
+  const pagados = gastos.filter((g) => g.estado === "pagado");
   const totalPendiente = pendientes.reduce((sum, g) => sum + Number(g.monto), 0);
-  const totalAprobado = aprobados.reduce((sum, g) => sum + Number(g.monto), 0);
-  const totalGeneral = gastos.reduce((sum, g) => sum + Number(g.monto), 0);
+  const totalPorPagar = porPagar.reduce((sum, g) => sum + Number(g.monto), 0);
+  const totalPagado = pagados.reduce((sum, g) => sum + Number(g.monto), 0);
+  const reales = gastos.filter(esGastoReal);
+  const totalGeneral = reales.reduce((sum, g) => sum + Number(g.monto), 0);
 
   const porCategoria = (Object.keys(CATEGORIA_LABEL) as (keyof typeof CATEGORIA_LABEL)[]).map((cat, i) => ({
     label: CATEGORIA_LABEL[cat],
-    value: gastos.filter((g) => g.categoria === cat).reduce((sum, g) => sum + Number(g.monto), 0),
+    value: reales.filter((g) => g.categoria === cat).reduce((sum, g) => sum + Number(g.monto), 0),
     color: CAT_COLORS[i % CAT_COLORS.length],
   }));
 
@@ -123,8 +136,10 @@ export function Dashboard() {
     { value: "", label: "Todos" },
     { value: "pendiente", label: "Pendiente" },
     { value: "pendiente_validacion", label: "Validando" },
-    { value: "aprobado", label: "Aprobado" },
+    { value: "aprobado", label: "Por pagar" },
+    { value: "pagado", label: "Pagado" },
     { value: "rechazado", label: "Rechazado" },
+    { value: "anulado", label: "Anulado" },
   ];
 
   return (
@@ -174,12 +189,12 @@ export function Dashboard() {
           </p>
         </div>
         <div>
-          <p className="mb-2 text-sm text-muted">Aprobados</p>
+          <p className="mb-2 text-sm text-muted">Por pagar</p>
           <p className="text-2xl font-semibold tabular-nums text-ink">
-            S/ <CountUp value={totalAprobado} decimals={2} />
+            S/ <CountUp value={totalPorPagar} decimals={2} />
           </p>
           <p className="mt-1 text-xs text-muted">
-            <DeltaBadge pct={pctDelta(aprobados)} /> {aprobados.length} comprobante(s)
+            <DeltaBadge pct={pctDelta(porPagar)} /> {porPagar.length} comprobante(s) esperando reembolso
           </p>
         </div>
         <div>
@@ -188,7 +203,7 @@ export function Dashboard() {
             S/ <CountUp value={totalGeneral} decimals={2} />
           </p>
           <p className="mt-1 text-xs text-muted">
-            <DeltaBadge pct={pctDelta(gastos)} /> {gastos.length} comprobante(s) en total
+            <DeltaBadge pct={pctDelta(reales)} /> {reales.length} comprobante(s) · S/ {totalPagado.toFixed(2)} ya pagado
           </p>
         </div>
       </div>
@@ -198,7 +213,7 @@ export function Dashboard() {
           <h2 className="font-display text-sm font-semibold text-ink">Gastos por mes</h2>
           <div className="flex items-center gap-4 text-xs text-muted">
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-brand" /> Aprobado
+              <span className="h-2.5 w-2.5 rounded-sm bg-brand" /> Aprobado o pagado
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm bg-brand-soft ring-1 ring-inset ring-brand/25" /> Total registrado

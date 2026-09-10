@@ -19,6 +19,21 @@ enum EstadoGasto {
   aprobado
   rechazado
   pendiente_validacion
+  // El ciclo no termina en "aprobado": la empresa todavía le debe la plata al empleado.
+  pagado
+  // Los registros financieros no se borran. Un gasto mal cargado se anula con motivo y
+  // queda a la vista en la auditoría, que es lo que un contador espera poder revisar.
+  anulado
+}
+
+// En Perú solo las FACTURAS dan derecho a crédito fiscal; las boletas de venta no. Un export
+// que no distingue las dos cosas no le sirve al contador, así que el tipo es parte del gasto.
+// Se infiere de la serie (F001 = factura, B001 = boleta) y se puede corregir a mano.
+enum TipoComprobante {
+  factura
+  boleta
+  recibo_honorarios
+  otro
 }
 
 enum Categoria {
@@ -39,57 +54,91 @@ model Empresa {
 }
 
 model Usuario {
-  id               String  @id @default(cuid())
+  id               String    @id @default(cuid())
   empresaId        String?
-  empresa          Empresa? @relation(fields: [empresaId], references: [id])
+  empresa          Empresa?  @relation(fields: [empresaId], references: [id])
   nombre           String
-  telefonoWhatsapp String? @unique
-  email            String  @unique
+  telefonoWhatsapp String?   @unique
+  email            String    @unique
   passwordHash     String
   rol              Rol
-  activo           Boolean @default(true)
+  activo           Boolean   @default(true)
   aprobadorId      String?
   aprobador        Usuario?  @relation("ReportaA", fields: [aprobadorId], references: [id])
   reportes         Usuario[] @relation("ReportaA")
 
   gastos       Gasto[]
   aprobaciones Aprobacion[]
+  ediciones    EdicionGasto[] @relation("EdicionesHechas")
+
+  // Bloqueo temporal tras varios intentos fallidos. Temporal y no permanente a propósito:
+  // un bloqueo definitivo convierte el login en una forma de dejar fuera a un compañero.
+  intentosFallidos Int       @default(0)
+  bloqueadoHasta   DateTime?
 
   @@index([empresaId])
 }
 
 model Gasto {
-  id                  String      @id @default(cuid())
-  empresaId           String
-  empresa             Empresa     @relation(fields: [empresaId], references: [id])
-  usuarioId           String
-  usuario             Usuario     @relation(fields: [usuarioId], references: [id])
-  monto               Decimal     @db.Decimal(10, 2)
-  fechaGasto           DateTime
-  categoria           Categoria
-  rucEmisor           String?
-  razonSocialEmisor   String?
-  numeroComprobante   String?
-  imagenUrl           String
-  estado              EstadoGasto @default(pendiente)
-  validadoSunat       Boolean     @default(false)
-  fechaCreacion       DateTime    @default(now())
+  id                String          @id @default(cuid())
+  empresaId         String
+  empresa           Empresa         @relation(fields: [empresaId], references: [id])
+  usuarioId         String
+  usuario           Usuario         @relation(fields: [usuarioId], references: [id])
+  monto             Decimal         @db.Decimal(10, 2)
+  fechaGasto        DateTime
+  categoria         Categoria
+  rucEmisor         String?
+  razonSocialEmisor String?
+  numeroComprobante String?
+  tipoComprobante   TipoComprobante @default(otro)
+  // IGV que el contador puede reclamar. Nullable a propósito: no leerlo es distinto de que
+  // sea cero (una boleta sin IGV desglosado vs. un servicio inafecto).
+  igv               Decimal?        @db.Decimal(10, 2)
+  imagenUrl         String
+  // SHA-256 de los bytes de la imagen. Es la única defensa contra subir dos veces la misma
+  // boleta cuando el OCR no pudo leer ni el RUC ni el número de comprobante.
+  imagenHash        String?
+  estado            EstadoGasto     @default(pendiente)
+  validadoSunat     Boolean         @default(false)
+  fechaCreacion     DateTime        @default(now())
+  fechaPago         DateTime?
+  motivoAnulacion   String?
 
   aprobaciones Aprobacion[]
+  ediciones    EdicionGasto[]
 
   @@unique([empresaId, rucEmisor, numeroComprobante])
   @@index([empresaId])
   @@index([usuarioId])
+  @@index([empresaId, imagenHash])
+}
+
+// Quién cambió qué y cuándo. En un sistema donde alguien puede editar el monto de un gasto ya
+// registrado, sin este rastro no hay forma de auditar una rendición — y es lo primero que
+// pregunta un contador cuando una cifra no le cuadra.
+model EdicionGasto {
+  id            String   @id @default(cuid())
+  gastoId       String
+  gasto         Gasto    @relation(fields: [gastoId], references: [id])
+  usuarioId     String
+  usuario       Usuario  @relation("EdicionesHechas", fields: [usuarioId], references: [id])
+  campo         String
+  valorAnterior String?
+  valorNuevo    String?
+  fecha         DateTime @default(now())
+
+  @@index([gastoId])
 }
 
 model Aprobacion {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   gastoId       String
-  gasto         Gasto     @relation(fields: [gastoId], references: [id])
+  gasto         Gasto    @relation(fields: [gastoId], references: [id])
   aprobadorId   String
-  aprobador     Usuario   @relation(fields: [aprobadorId], references: [id])
+  aprobador     Usuario  @relation(fields: [aprobadorId], references: [id])
   decision      Boolean
-  fechaDecision DateTime  @default(now())
+  fechaDecision DateTime @default(now())
   comentario    String?
 }
 

@@ -1,5 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Camera, Check, LoaderCircle, RotateCcw, LogOut } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Camera, Check, LoaderCircle, RotateCcw, LogOut, Settings } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Logo } from "../components/Logo";
@@ -70,9 +71,16 @@ export function Subir() {
           <Logo size={26} />
           <span className="font-display font-semibold tracking-tight text-ink">Gastify</span>
         </div>
-        <button onClick={logout} className="flex items-center gap-1.5 text-sm text-muted" aria-label="Cerrar sesión">
-          <LogOut size={15} />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* /subir vive fuera del Layout, así que desde acá no se ve la barra lateral: sin este
+              enlace el empleado no tendría por dónde cambiar su contraseña. */}
+          <Link to="/configuracion" className="p-2 text-muted hover:text-ink" aria-label="Mi perfil" title="Mi perfil">
+            <Settings size={16} />
+          </Link>
+          <button onClick={logout} className="p-2 text-muted hover:text-ink" aria-label="Cerrar sesión" title="Cerrar sesión">
+            <LogOut size={16} />
+          </button>
+        </div>
       </header>
 
       <main className="flex flex-1 flex-col items-center justify-center px-6 pb-10 text-center">
