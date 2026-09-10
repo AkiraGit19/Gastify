@@ -8,3 +8,5 @@ dist/
 *.tsbuildinfo
 backend/uploads/
 backend/test-media/
+.vercel
+.env*

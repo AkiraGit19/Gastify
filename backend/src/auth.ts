@@ -28,7 +28,30 @@ export function verifyPassword(password: string, hash: string) {
 }
 
 export function signSession(user: SessionUser) {
-  return jwt.sign(user, JWT_SECRET, { expiresIn: "7d" });
+  // El empleado entra tocando el ícono en su pantalla de inicio y no vuelve a ver un login.
+  // Con 7 días quedaría afuera cada semana, que es exactamente la fricción que el panel viene a
+  // eliminar. La contrapartida —un token largo no se puede revocar— se cubre comprobando que la
+  // cuenta siga activa al registrar el gasto (ver POST /gastos), no alargando menos el token.
+  return jwt.sign(user, JWT_SECRET, { expiresIn: user.rol === "empleado" ? "365d" : "7d" });
+}
+
+// Payloads firmados que NO son sesiones: un borrador de gasto que vuelve del navegador, o un
+// link de invitación. El campo `proposito` es lo que impide que un token de un tipo sirva para
+// el otro; un token de sesión no lo lleva, así que tampoco pasa por acá.
+type Proposito = "borrador" | "invitacion";
+
+export function signPayload(proposito: Proposito, data: object, expiraEnSegundos: number) {
+  return jwt.sign({ ...data, proposito }, JWT_SECRET, { expiresIn: expiraEnSegundos });
+}
+
+export function verifyPayload<T>(proposito: Proposito, token: string): T | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as Record<string, unknown>;
+    if (decoded.proposito !== proposito) return null;
+    return decoded as T;
+  } catch {
+    return null;
+  }
 }
 
 declare global {

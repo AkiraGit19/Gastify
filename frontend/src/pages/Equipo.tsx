@@ -16,6 +16,8 @@ export function Equipo() {
   const [usuarios, setUsuarios] = useState<Usuario[] | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [resetTarget, setResetTarget] = useState<Usuario | null>(null);
+  const [invitacion, setInvitacion] = useState<{ usuario: Usuario; url: string } | null>(null);
+  const [copiado, setCopiado] = useState(false);
   const [error, setError] = useState("");
 
   function load() {
@@ -34,15 +36,25 @@ export function Equipo() {
       await api.post("/usuarios", {
         nombre: form.get("nombre"),
         email: form.get("email"),
-        telefonoWhatsapp: form.get("telefonoWhatsapp"),
+        telefonoWhatsapp: form.get("telefonoWhatsapp") || undefined,
         rol: form.get("rol"),
         aprobadorId: form.get("aprobadorId") || undefined,
-        password: form.get("password"),
       });
       setShowForm(false);
       load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo crear el usuario");
+    }
+  }
+
+  async function generarInvitacion(u: Usuario) {
+    setError("");
+    setCopiado(false);
+    try {
+      const res = await api.post<{ url: string }>(`/usuarios/${u.id}/invitacion`, {});
+      setInvitacion({ usuario: u, url: res.url });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo generar el link");
     }
   }
 
@@ -84,20 +96,42 @@ export function Equipo() {
         </button>
       </div>
 
+      {invitacion && (
+        <Modal title={`Link de acceso — ${invitacion.usuario.nombre}`} onClose={() => setInvitacion(null)}>
+          <p className="mb-3 text-sm text-muted">
+            Mándaselo por donde quieras. Al abrirlo elige su contraseña y entra; después guarda la
+            página en su pantalla de inicio y ya no vuelve a loguearse. Vence en 7 días y sirve una sola vez.
+          </p>
+          <input
+            readOnly
+            value={invitacion.url}
+            onFocus={(e) => e.currentTarget.select()}
+            className="w-full rounded-md border border-ink/12 bg-page px-3 py-2 text-xs text-ink"
+          />
+          <button
+            onClick={async () => {
+              // El portapapeles solo existe en https o localhost; si falla, el input de arriba
+              // sigue siendo seleccionable a mano, que es el motivo de mostrarlo entero.
+              try {
+                await navigator.clipboard.writeText(invitacion.url);
+                setCopiado(true);
+              } catch {
+                setCopiado(false);
+              }
+            }}
+            className="mt-3 w-full rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white"
+          >
+            {copiado ? "Copiado" : "Copiar link"}
+          </button>
+        </Modal>
+      )}
+
       {showForm && (
         <Modal title="Nuevo miembro" onClose={() => setShowForm(false)}>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3">
             <input name="nombre" required placeholder="Nombre completo" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
             <input name="email" type="email" required placeholder="Correo" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
-            <input name="telefonoWhatsapp" required placeholder="Teléfono WhatsApp (51999...)" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
-            <input
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              placeholder="Contraseña inicial (mín. 8 caracteres)"
-              className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm"
-            />
+            <input name="telefonoWhatsapp" placeholder="Teléfono WhatsApp (opcional, solo si usan el bot)" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm" />
             <select name="rol" className="rounded-md border border-ink/12 bg-page px-3 py-2 text-sm">
               <option value="empleado">Empleado</option>
               <option value="aprobador">Aprobador</option>
@@ -108,6 +142,9 @@ export function Equipo() {
                 <option key={a.id} value={a.id}>{a.nombre}</option>
               ))}
             </select>
+            <p className="text-xs text-muted">
+              No hace falta contraseña: al crearlo se genera un link de invitación para que elija la suya.
+            </p>
             {error && <p className="text-sm text-stamp-rechazado">{error}</p>}
             <button type="submit" className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white">
               Crear
@@ -168,9 +205,17 @@ export function Equipo() {
                       {ROL_LABEL[u.rol] ?? u.rol}
                     </span>
                   </td>
-                  <td className="py-3 pr-4 text-muted">{u.telefonoWhatsapp}</td>
+                  <td className="py-3 pr-4 text-muted">{u.telefonoWhatsapp ?? "—"}</td>
                   <td className="py-3 pr-0">
                     <div className="flex items-center justify-end gap-1">
+                      {u.id !== user?.id && u.activo && (
+                        <button
+                          onClick={() => generarInvitacion(u)}
+                          className="rounded-md px-3 py-1.5 text-xs font-semibold text-brand hover:underline"
+                        >
+                          Link de acceso
+                        </button>
+                      )}
                       {u.id !== user?.id && (
                         <button
                           onClick={() => setResetTarget(u)}

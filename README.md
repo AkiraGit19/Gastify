@@ -46,7 +46,7 @@ Funciona completamente en local, sin ninguna cuenta externa:
 
 Necesita credenciales reales para activarse (mientras tanto degrada con gracia, tal como pide la spec):
 - **WhatsApp:** sin `WHATSAPP_API_TOKEN`, los mensajes salientes del bot solo se imprimen en la consola del backend (`[whatsapp:out]`). El webhook y toda la máquina de conversación ya están implementados — solo falta conectar credenciales reales de Meta.
-- **OCR:** sin `GOOGLE_VISION_API_KEY`, el bot pasa directo al flujo de "confírmame cada dato a mano" (el mismo camino que usa cuando el OCR real no logra leer un campo).
+- **OCR:** sin `ANTHROPIC_API_KEY`, el lector de boletas pasa directo al flujo de "confírmame cada dato a mano" (el mismo camino que usa cuando no logra leer un campo). Con la key, Claude lee la foto del comprobante y devuelve `null` en todo dato del que no esté seguro, para que el sistema pregunte en vez de inventar.
 - **SUNAT:** sin `SUNAT_VALIDATION_API_KEY`, todo gasto nuevo queda en estado `pendiente_validacion` (nunca se pierde ni se bloquea, tal como exige la spec).
 - **Imágenes:** sin `CLOUDINARY_URL`, las fotos de boletas se guardan localmente en `backend/uploads/`.
 

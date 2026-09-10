@@ -2,7 +2,8 @@ import { Router } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "../db.js";
-import { requireAuth, requireRole, hashPassword, verifyPassword } from "../auth.js";
+import crypto from "node:crypto";
+import { requireAuth, requireRole, hashPassword, verifyPassword, signPayload } from "../auth.js";
 
 export const usuariosRouter = Router();
 
@@ -82,10 +83,14 @@ usuariosRouter.get("/", async (req, res) => {
 const createSchema = z.object({
   nombre: z.string().min(1),
   email: z.string().email(),
-  telefonoWhatsapp: z.string().min(8),
+  // Opcional desde que existe el panel web: una empresa que no usa WhatsApp no tiene por qué
+  // cargar los teléfonos de su gente. Sin teléfono, el bot simplemente no atiende a ese usuario.
+  telefonoWhatsapp: z.string().min(8).optional(),
   rol: z.enum(["empleado", "aprobador"]),
   aprobadorId: z.string().optional(),
-  password: z.string().min(8),
+  // Opcional: si no viene, la cuenta nace sin contraseña utilizable y se entra por el link de
+  // invitación. Así el admin no tiene que inventar contraseñas ni dictarlas por teléfono.
+  password: z.string().min(8).optional(),
 });
 
 usuariosRouter.post("/", async (req, res) => {
@@ -102,7 +107,9 @@ usuariosRouter.post("/", async (req, res) => {
     if (!aprobador) return res.status(400).json({ error: "Aprobador inválido" });
   }
 
-  const passwordHash = await hashPassword(password);
+  // Sin contraseña se guarda el hash de un valor aleatorio que nadie conoce: la cuenta existe,
+  // pero no hay nada que se pueda tipear para entrar hasta que se use el link de invitación.
+  const passwordHash = await hashPassword(password ?? crypto.randomBytes(32).toString("hex"));
   const usuario = await db.usuario.create({
     data: { ...rest, empresaId, passwordHash },
     select: SELECT_PUBLICO,
@@ -153,4 +160,26 @@ usuariosRouter.patch("/:id", async (req, res) => {
 
   const usuario = await db.usuario.update({ where: { id: existing.id }, data, select: SELECT_PUBLICO });
   res.json(usuario);
+});
+
+// El admin genera el link y se lo pasa al empleado una sola vez, por donde quiera (su propio
+// WhatsApp, en persona, un papel). El empleado elige su contraseña, guarda la página en su
+// pantalla de inicio y no vuelve a ver un login. Sin correos, sin dominios que comprar.
+usuariosRouter.post("/:id/invitacion", async (req, res) => {
+  const usuario = await db.usuario.findFirst({
+    where: { id: req.params.id, empresaId: req.user!.empresaId! },
+  });
+  if (!usuario) return res.status(404).json({ error: "No encontrado" });
+  if (!usuario.activo) return res.status(400).json({ error: "Esa cuenta está dada de baja" });
+
+  // El link queda inutilizable en cuanto se usa: al fijar la contraseña cambia el hash y esta
+  // huella deja de coincidir. Es de un solo uso sin agregar una columna a la base.
+  const token = signPayload(
+    "invitacion",
+    { usuarioId: usuario.id, huella: usuario.passwordHash.slice(-16) },
+    7 * 24 * 60 * 60,
+  );
+
+  const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
+  res.json({ url: `${frontendUrl}/invitacion?token=${encodeURIComponent(token)}`, expiraEnDias: 7 });
 });

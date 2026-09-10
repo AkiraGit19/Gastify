@@ -3,7 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- start_url apunta a /subir: al empleado que guarda la página en su pantalla de inicio le
+         abre directo la cámara, sin pasar por el dashboard. Ese atajo es todo el "app nativa"
+         que este producto necesita.
+         ponytail: el ícono es el SVG, que Android usa sin problema. iOS ignora los SVG en
+         apple-touch-icon y muestra una captura de la página; para arreglarlo hace falta exportar
+         un PNG de 180x180 y enlazarlo acá. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#2fa0d1" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

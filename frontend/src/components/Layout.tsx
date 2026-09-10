@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Receipt, CheckSquare, Users, Building2, LogOut, ChevronRight, ChevronDown, Menu, X, Settings } from "lucide-react";
+import { LayoutDashboard, Receipt, CheckSquare, Users, Building2, LogOut, ChevronRight, ChevronDown, Menu, X, Settings, Camera } from "lucide-react";
 import { useAuth, type Rol } from "../lib/auth";
 import { Logo } from "./Logo";
 import { NotificationsBell } from "./NotificationsBell";
@@ -28,7 +28,7 @@ function navFor(rol: Rol): NavItem[] {
       return [{ to: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare }];
     case "empleado":
       return [
-        { to: "/", label: "Dashboard", icon: LayoutDashboard },
+        { to: "/subir", label: "Subir boleta", icon: Camera },
         { to: "/gastos", label: "Mis gastos", icon: Receipt },
       ];
   }

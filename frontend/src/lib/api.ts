@@ -28,12 +28,31 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json();
 }
 
+// Subida de archivos: a diferencia de request(), acá NO se fija Content-Type a propósito. El
+// navegador tiene que ponerlo él para incluir el boundary del multipart; si se lo pisamos, el
+// backend recibe un cuerpo que no puede parsear.
+async function requestForm<T>(path: string, form: FormData): Promise<T> {
+  const token = localStorage.getItem("gastify_token");
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    body: form,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new ApiError(res.status, body.error ?? "Error inesperado");
+  }
+  return res.json();
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, data?: unknown) =>
     request<T>(path, { method: "POST", body: data ? JSON.stringify(data) : undefined }),
   patch: <T>(path: string, data?: unknown) =>
     request<T>(path, { method: "PATCH", body: data ? JSON.stringify(data) : undefined }),
+  upload: <T>(path: string, form: FormData) => requestForm<T>(path, form),
 };
 
 export function apiUrl(path: string) {

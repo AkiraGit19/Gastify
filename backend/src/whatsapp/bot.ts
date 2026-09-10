@@ -1,6 +1,6 @@
 import { db } from "../db.js";
 import { readReceipt } from "./ocr.js";
-import { validarRuc } from "./sunat.js";
+import { crearGasto, parseFecha } from "../gastos/crear.js";
 import { downloadWhatsAppMedia, storeReceiptImage } from "./media.js";
 import { sendText, sendButtons } from "./send.js";
 
@@ -178,51 +178,25 @@ async function askCategoria(usuarioId: string, phone: string, draft: Draft) {
 }
 
 async function finalizeGasto(usuario: { id: string; empresaId: string | null; aprobadorId: string | null }, phone: string, draft: Draft) {
-  // Checked here, against the final confirmed data, not right after OCR — the employee fills in
-  // ruc/comprobante by hand whenever OCR can't read them, so checking pre-correction values would
-  // silently skip this check for every manually-entered receipt.
-  if (draft.rucEmisor && draft.numeroComprobante) {
-    const duplicado = await db.gasto.findFirst({
-      where: { empresaId: usuario.empresaId!, rucEmisor: draft.rucEmisor, numeroComprobante: draft.numeroComprobante },
-    });
-    if (duplicado) {
-      await db.conversacionWA.delete({ where: { usuarioId: usuario.id } });
-      await sendText(phone, "Esta boleta ya fue registrada antes en el sistema. No se creó un gasto nuevo.");
-      return;
-    }
-  }
-
-  const sunat = draft.rucEmisor ? await validarRuc(draft.rucEmisor) : { disponible: false };
-
-  const gasto = await db.gasto.create({
-    data: {
-      empresaId: usuario.empresaId!,
-      usuarioId: usuario.id,
-      monto: draft.monto ?? 0,
-      fechaGasto: parseFecha(draft.fecha),
-      categoria: draft.categoria as any,
-      rucEmisor: draft.rucEmisor,
-      razonSocialEmisor: draft.proveedor,
-      numeroComprobante: draft.numeroComprobante,
-      imagenUrl: draft.imagenUrl!,
-      estado: sunat.disponible ? "pendiente" : "pendiente_validacion",
-      validadoSunat: sunat.disponible ? Boolean(sunat.activo) : false,
-    },
+  const resultado = await crearGasto(usuario, {
+    monto: draft.monto ?? 0,
+    fecha: parseFecha(draft.fecha),
+    proveedor: draft.proveedor,
+    rucEmisor: draft.rucEmisor,
+    numeroComprobante: draft.numeroComprobante,
+    imagenUrl: draft.imagenUrl!,
+    categoria: draft.categoria!,
   });
 
   await db.conversacionWA.delete({ where: { usuarioId: usuario.id } });
 
-  let aprobadorNombre = "tu aprobador";
-  if (usuario.aprobadorId) {
-    const aprobador = await db.usuario.findUnique({ where: { id: usuario.aprobadorId } });
-    if (aprobador) {
-      aprobadorNombre = aprobador.nombre;
-      await notificarAprobador(aprobador);
-    }
+  if (!resultado.ok) {
+    await sendText(phone, "Esta boleta ya fue registrada antes en el sistema. No se creó un gasto nuevo.");
+    return;
   }
 
-  await sendText(phone, `Gasto registrado, enviado a aprobación de ${aprobadorNombre}.`);
-  void gasto;
+  if (resultado.aprobador) await notificarAprobador(resultado.aprobador);
+  await sendText(phone, `Gasto registrado, enviado a aprobación de ${resultado.aprobador?.nombre ?? "tu aprobador"}.`);
 }
 
 async function notificarAprobador(aprobador: { id: string; telefonoWhatsapp: string | null }) {
@@ -245,12 +219,4 @@ function matchCampo(texto: string): string | null {
   if (t.includes("ruc")) return "rucEmisor";
   if (t.includes("comprobante") || t.includes("numero")) return "numeroComprobante";
   return null;
-}
-
-function parseFecha(fecha?: string): Date {
-  if (!fecha) return new Date();
-  const match = fecha.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  if (!match) return new Date();
-  const [, dd, mm, yyyy] = match;
-  return new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`);
 }

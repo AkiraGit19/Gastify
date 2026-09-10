@@ -1,0 +1,13 @@
+{
+  "name": "Gastify",
+  "short_name": "Gastify",
+  "description": "Registra tus boletas con una foto",
+  "start_url": "/subir",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f7fa",
+  "theme_color": "#2fa0d1",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
