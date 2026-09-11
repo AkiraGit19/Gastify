@@ -10,6 +10,27 @@ const UPLOADS_DIR = path.resolve(import.meta.dirname, "../../uploads");
 const TEST_MEDIA_DIR = path.resolve(import.meta.dirname, "../../test-media");
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 4000}`;
 
+// Vercel y Render definen estas variables solos; NODE_ENV cubre cualquier otro hosting.
+const EN_PRODUCCION = Boolean(process.env.VERCEL || process.env.RENDER || process.env.NODE_ENV === "production");
+
+// Sin Supabase, las boletas se guardan en el disco del contenedor — que en Vercel y en el plan
+// gratis de Render se borra en cada despliegue. Eso no es una degradación aceptable: la foto es
+// el sustento del gasto ante SUNAT, así que perderla deja registros de dinero sin respaldo, y
+// nadie se entera hasta que un contador pide ver un comprobante de hace tres meses.
+//
+// Por eso en producción esto revienta al arrancar en vez de funcionar a medias: el mismo criterio
+// que JWT_SECRET en auth.ts. Un despliegue que no arranca se nota; uno que borra fotos en silencio, no.
+if (EN_PRODUCCION && !(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY)) {
+  throw new Error(
+    "Falta configurar Supabase Storage (SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY). " +
+      "Sin eso las fotos de las boletas se guardarían en disco efímero y se perderían en el próximo despliegue.",
+  );
+}
+
+if (!EN_PRODUCCION && !(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY)) {
+  console.warn("[storage] Sin Supabase configurado: las boletas van a backend/uploads/. Sirve para desarrollo, nunca para producción.");
+}
+
 export async function downloadWhatsAppMedia(mediaId: string): Promise<Buffer> {
   if (!WHATSAPP_API_TOKEN) {
     // ponytail: no Meta credentials yet — read a local test image instead of calling graph.facebook.com.

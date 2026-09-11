@@ -3,6 +3,8 @@
 //   npx tsx src/verificar.ts foto1.jpg ...   -> lee boletas reales y muestra qué entendió (~2 centavos por foto)
 import "dotenv/config";
 import assert from "node:assert";
+import { spawnSync } from "node:child_process";
+import path from "node:path";
 import fs from "node:fs";
 import { readReceipt, sniffMediaType, toResult } from "./whatsapp/ocr.js";
 import { signPayload, verifyPayload, signSession } from "./auth.js";
@@ -153,6 +155,32 @@ function checkCsv() {
   console.log("✓ csv");
 }
 
+function checkGuardaDeStorage() {
+  // Sin Supabase, las boletas irían al disco del contenedor, que Vercel y Render borran en cada
+  // despliegue. Perder la foto deja un gasto sin sustento ante SUNAT y nadie lo nota hasta que un
+  // contador pide el comprobante meses después. En producción el servidor tiene que negarse a
+  // arrancar, no funcionar a medias.
+  const modulo = path.resolve(import.meta.dirname, "whatsapp/media.ts");
+  const correr = (env: Record<string, string>) =>
+    spawnSync("npx", ["tsx", "-e", `import(${JSON.stringify(modulo)})`], {
+      encoding: "utf8",
+      // Se limpia el entorno heredado para que un .env local no falsee el resultado.
+      env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", ...env },
+    });
+
+  const sinStorage = correr({ NODE_ENV: "production" });
+  assert.notEqual(sinStorage.status, 0, "en producción sin Supabase el arranque debe fallar");
+  assert.match(sinStorage.stderr, /Supabase Storage/, "y el error debe decir qué falta");
+
+  const conStorage = correr({ NODE_ENV: "production", SUPABASE_URL: "https://x.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "k" });
+  assert.equal(conStorage.status, 0, `con Supabase configurado debe arrancar: ${conStorage.stderr}`);
+
+  const enDesarrollo = correr({});
+  assert.equal(enDesarrollo.status, 0, "en desarrollo sigue funcionando con disco local");
+
+  console.log("✓ guarda de storage");
+}
+
 function checkFechas() {
   assert.equal(parseFecha("25/12/2025").toISOString().slice(0, 10), "2025-12-25");
   // Sin fecha legible cae a hoy en vez de romper: un gasto con fecha aproximada se corrige,
@@ -202,5 +230,6 @@ if (rutas.length === 0) {
   checkComprobantes();
   checkIgvAlEditar();
   checkCsv();
+  checkGuardaDeStorage();
   checkFechas();
 } else await leerFotos(rutas);

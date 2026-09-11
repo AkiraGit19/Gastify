@@ -77,6 +77,19 @@ npx tsx src/verificar-e2e.ts        # extremo a extremo contra servidor y base v
 
 El e2e es repetible: cada corrida usa correos y bytes de imagen distintos, y borra lo que creó.
 
+## Antes de desplegar
+
+El backend **se niega a arrancar en producción** si faltan `SUPABASE_URL` y
+`SUPABASE_SERVICE_ROLE_KEY`. No es un capricho: sin Supabase las boletas se guardan en el disco
+del contenedor, que Vercel y el plan gratuito de Render borran en cada despliegue. Perder la foto
+deja un gasto sin sustento ante SUNAT, y eso no se descubre hasta que un contador pide el
+comprobante meses después.
+
+Para configurarlo: en Supabase, Storage → New bucket → nombre `boletas`, marcado como público.
+Las dos variables salen de Project Settings → API (`Project URL` y la clave `service_role`).
+
+En desarrollo no hace falta: avisa por consola y guarda en `backend/uploads/`.
+
 ## Monitoreo
 
 Todo error que escape de un handler queda guardado en `ErrorRegistrado` y aparece en la pantalla
