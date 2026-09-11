@@ -64,7 +64,7 @@ export function EditarGasto({ gasto, onClose, onSaved }: { gasto: Gasto; onClose
   }
 
   return (
-    <Modal title="Corregir gasto" onClose={onClose}>
+    <Modal title="Corregir gasto" onClose={onClose} ancho="amplio">
       <div className="grid gap-4 sm:grid-cols-[1fr_1.2fr]">
         <a href={gasto.imagenUrl} target="_blank" rel="noreferrer" className="block">
           <img
@@ -88,7 +88,7 @@ export function EditarGasto({ gasto, onClose, onSaved }: { gasto: Gasto; onClose
               {Object.entries(CATEGORIA_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </Campo>
-          <Campo label="Tipo de comprobante">
+          <Campo label="Tipo">
             <select
               value={form.tipoComprobante}
               disabled={!puedeContabilidad}
@@ -99,10 +99,10 @@ export function EditarGasto({ gasto, onClose, onSaved }: { gasto: Gasto; onClose
             </select>
           </Campo>
 
-          <Campo label="RUC del emisor">
+          <Campo label="RUC">
             <input value={form.rucEmisor} onChange={(e) => set("rucEmisor", e.target.value)} className={INPUT} />
           </Campo>
-          <Campo label="N° de comprobante">
+          <Campo label="Comprobante">
             <input value={form.numeroComprobante} onChange={(e) => set("numeroComprobante", e.target.value)} className={INPUT} />
           </Campo>
 

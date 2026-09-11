@@ -10,3 +10,4 @@ backend/uploads/
 backend/test-media/
 .vercel
 .env*
+.gstack/

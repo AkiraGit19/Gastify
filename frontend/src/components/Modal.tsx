@@ -1,11 +1,23 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Modal({
+  title,
+  onClose,
+  children,
+  ancho = "normal",
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  // "amplio" para formularios de dos columnas; con el ancho normal los <input type="date">
+  // salen cortados y las etiquetas largas se parten en dos líneas, desalineando las columnas.
+  ancho?: "normal" | "amplio";
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-2xl border border-ink/8 bg-surface p-6 shadow-xl">
+      <div className={`relative w-full ${ancho === "amplio" ? "max-w-2xl" : "max-w-md"} rounded-2xl border border-ink/8 bg-surface p-6 shadow-xl`}>
         <div className="mb-5 flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
           <button onClick={onClose} className="text-muted hover:text-ink" aria-label="Cerrar">
