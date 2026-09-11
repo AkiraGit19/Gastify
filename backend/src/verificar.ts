@@ -10,7 +10,7 @@ import { readReceipt, sniffMediaType, toResult } from "./whatsapp/ocr.js";
 import { signPayload, verifyPayload, signSession } from "./auth.js";
 import { parseFecha } from "./gastos/crear.js";
 import { toCsv } from "./csv.js";
-import { inferirTipoComprobante, calcularIgv, requiereBancarizacion, igvTrasEdicion } from "./gastos/comprobante.js";
+import { inferirTipoComprobante, calcularIgv, requiereBancarizacion, igvTrasEdicion, codigoSunat, partirComprobante } from "./gastos/comprobante.js";
 
 function selfCheck() {
   const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(20)]);
@@ -92,6 +92,33 @@ function checkComprobantes() {
   console.log("✓ comprobantes");
 }
 
+function checkConsultaSunat() {
+  // Solo factura y boleta son consultables en el servicio de SUNAT. Pedir por los otros gastaría
+  // una llamada para recibir un error.
+  assert.equal(codigoSunat("factura"), "01");
+  assert.equal(codigoSunat("boleta"), "03");
+  assert.equal(codigoSunat("recibo_honorarios"), null);
+  assert.equal(codigoSunat("otro"), null);
+
+  // SUNAT espera el correlativo sin ceros a la izquierda, pero las boletas los imprimen y el OCR
+  // los devuelve. Sin recortarlos, un comprobante válido vuelve como "no existe" — parece fraude
+  // y no lo es.
+  assert.deepEqual(partirComprobante("F001-00000123"), { serie: "F001", numero: "123" });
+  assert.deepEqual(partirComprobante("b001-45"), { serie: "B001", numero: "45" }, "minúsculas y espacios se normalizan");
+  assert.deepEqual(partirComprobante(" F001 - 0009 "), { serie: "F001", numero: "9" });
+  assert.deepEqual(partirComprobante("F001-000"), { serie: "F001", numero: "0" }, "todo ceros no debe quedar vacío");
+
+  // Lo que no tiene forma de comprobante no se consulta: mejor no preguntar que preguntar mal.
+  assert.equal(partirComprobante("F001"), null, "sin correlativo no hay consulta");
+  assert.equal(partirComprobante("FAC-123"), null, "la serie son 4 caracteres");
+  assert.equal(partirComprobante("F001-12A"), null, "el correlativo es numérico");
+  assert.equal(partirComprobante("F001-1-2"), null);
+  assert.equal(partirComprobante(undefined), null);
+  assert.equal(partirComprobante(""), null);
+
+  console.log("✓ consulta sunat");
+}
+
 function checkIgvAlEditar() {
   const factura = { monto: 118, tipoComprobante: "factura" as const, igv: 18 };
 
@@ -126,19 +153,20 @@ function checkCsv() {
       fechaGasto: new Date("2026-03-12T00:00:00Z"), usuario: { nombre: "María Ñañez" },
       categoria: "alimentacion", tipoComprobante: "factura", monto: "1180", igv: "180",
       rucEmisor: "20512345678", razonSocialEmisor: "TAMBO; S.A.C.", numeroComprobante: "F001-9",
-      estado: "pagado", fechaPago: new Date("2026-03-20T00:00:00Z"),
+      estado: "pagado", fechaPago: new Date("2026-03-20T00:00:00Z"), observacionSunat: null,
     },
     {
       fechaGasto: new Date("2026-03-13T00:00:00Z"), usuario: { nombre: "Jorge" },
       categoria: "movilidad", tipoComprobante: "boleta", monto: "2500.5", igv: null,
       rucEmisor: null, razonSocialEmisor: null, numeroComprobante: null,
-      estado: "aprobado", fechaPago: null,
+      estado: "aprobado", fechaPago: null, observacionSunat: "SUNAT reporta el comprobante como ANULADO",
     },
   ]);
   const [cabecera, f1, f2] = csv.split("\r\n");
 
   assert.ok(csv.startsWith("\uFEFF"), "sin BOM, Excel muestra 'AlimentaciÃ³n' en vez de 'Alimentación'");
   assert.ok(cabecera.includes("IGV;Total"), "el contador necesita el IGV separado del total");
+  assert.ok(f2.includes("ANULADO"), "lo que observó SUNAT tiene que llegar al contador, no quedarse en pantalla");
 
   // Factura: 1180 con 180 de IGV son 1000 de subtotal, con coma decimal para el Excel peruano.
   assert.ok(f1.includes(";1000,00;180,00;1180,00;"), `subtotal/igv/total mal formateados: ${f1}`);
@@ -228,6 +256,7 @@ if (rutas.length === 0) {
   selfCheck();
   checkTokens();
   checkComprobantes();
+  checkConsultaSunat();
   checkIgvAlEditar();
   checkCsv();
   checkGuardaDeStorage();

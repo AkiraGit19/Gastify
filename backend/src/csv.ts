@@ -12,6 +12,7 @@ interface GastoRow {
   numeroComprobante: string | null;
   estado: string;
   fechaPago: Date | null;
+  observacionSunat: string | null;
 }
 
 // Excel en español usa el punto y coma como separador de listas y la coma como separador decimal.
@@ -53,7 +54,7 @@ function fecha(valor: Date | null): string {
 export function toCsv(gastos: GastoRow[]) {
   const header = [
     "Fecha", "Empleado", "Categoría", "Tipo comprobante", "RUC emisor", "Razón social",
-    "Comprobante", "Subtotal", "IGV", "Total", "Requiere bancarización", "Estado", "Fecha de pago",
+    "Comprobante", "Subtotal", "IGV", "Total", "Requiere bancarización", "Estado", "Fecha de pago", "Observación SUNAT",
   ];
 
   const rows = gastos.map((g) => {
@@ -78,6 +79,7 @@ export function toCsv(gastos: GastoRow[]) {
       requiereBancarizacion(total) ? "Sí" : "",
       g.estado,
       fecha(g.fechaPago),
+      g.observacionSunat ?? "",
     ]
       .map((v) => escapeCsv(String(v)))
       .join(SEP);

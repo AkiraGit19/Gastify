@@ -12,6 +12,7 @@ export interface Gasto {
   imagenUrl: string;
   estado: EstadoGasto;
   validadoSunat: boolean;
+  observacionSunat: string | null;
   fechaCreacion: string;
   fechaPago: string | null;
   motivoAnulacion: string | null;

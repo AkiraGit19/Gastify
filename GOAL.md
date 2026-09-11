@@ -151,6 +151,25 @@ el monto y cierra la app sin responder, esa imagen queda guardada sin gasto. El 
 los 30 minutos pero el archivo no se borra solo. Con OCR funcionando ese camino es poco frecuente;
 si acumula, la solución es un barrido periódico de imágenes sin gasto asociado.
 
+## SUNAT (hecho)
+
+Antes solo se consultaba el RUC: eso dice que el proveedor existe, no que la boleta sea real. Una
+factura inventada con el RUC de un proveedor verdadero pasaba el filtro sin levantar nada.
+
+Ahora se consulta también el comprobante contra SUNAT (endpoint CPE de apiperu.dev, la misma key
+que ya se usaba para el RUC — SUNAT directo exigiría credenciales SOL de cada empresa cliente, que
+es fricción en cada venta). Un gasto solo pasa a `pendiente` si el RUC está activo Y SUNAT
+reconoce el comprobante como ACEPTADO. Cualquier otra cosa va a revisión humana con la razón
+escrita en `observacionSunat`, que sale en la pantalla del aprobador y en el CSV.
+
+Nada se rechaza automáticamente: una API caída no es prueba de fraude.
+
+### Las matemáticas
+
+Auditadas, no hay nada que arreglar. El subtotal se deriva como total − IGV en vez de redondearse
+por separado, así que las columnas del CSV siempre suman exacto. Comprobado con 300 facturas:
+descuadre de 0.00.
+
 ## Lo que sigue faltando para vender
 
 - La exactitud del OCR sigue sin validar contra boletas reales (falta la API key).

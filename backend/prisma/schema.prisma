@@ -101,6 +101,10 @@ model Gasto {
   imagenHash        String?
   estado            EstadoGasto     @default(pendiente)
   validadoSunat     Boolean         @default(false)
+  // Qué dijo SUNAT del comprobante: null si todo bien o si no se pudo consultar, y un texto
+  // corto cuando hay algo que quien aprueba tiene que ver ("SUNAT reporta el comprobante como
+  // ANULADO"). Es la diferencia entre leer una foto y verificar un gasto.
+  observacionSunat  String?
   fechaCreacion     DateTime        @default(now())
   fechaPago         DateTime?
   motivoAnulacion   String?

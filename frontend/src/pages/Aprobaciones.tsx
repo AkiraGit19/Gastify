@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, X, Pencil } from "lucide-react";
+import { Check, X, Pencil, TriangleAlert } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import type { Gasto } from "../lib/types";
 import { CATEGORIA_LABEL, TIPO_COMPROBANTE_LABEL } from "../lib/types";
@@ -88,6 +88,14 @@ export function Aprobaciones() {
                   </td>
                   <td className="py-3 pr-4">
                     <StatusPill estado={g.estado} />
+                    {/* Un comprobante que SUNAT no reconoce o declara anulado es la señal de
+                        fraude más fuerte que da el sistema. No se rechaza solo, pero tiene que
+                        saltar a la vista de quien decide. */}
+                    {g.observacionSunat && (
+                      <span className="mt-0.5 flex items-center gap-1 text-xs font-medium text-stamp-rechazado">
+                        <TriangleAlert size={12} /> {g.observacionSunat}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 pr-4 font-medium tabular-nums text-ink">S/ {Number(g.monto).toFixed(2)}</td>
                   <td className="py-3 pr-4">

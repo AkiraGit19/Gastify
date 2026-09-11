@@ -65,3 +65,35 @@ export function igvTrasEdicion(
 
   return calcularIgv(montoNuevo, tipoNuevo);
 }
+
+// Códigos de tipo de comprobante de SUNAT. Solo se mapean los que su servicio de validación
+// acepta: factura y boleta. Un recibo por honorarios o un "otro" no se pueden consultar, y
+// pedirlo igual solo gastaría una llamada para recibir un error.
+const CODIGO_SUNAT: Partial<Record<TipoComprobante, string>> = {
+  factura: "01",
+  boleta: "03",
+};
+
+export function codigoSunat(tipo: TipoComprobante): string | null {
+  return CODIGO_SUNAT[tipo] ?? null;
+}
+
+// "F001-00000123" -> { serie: "F001", numero: "123" }
+//
+// SUNAT espera el correlativo sin ceros a la izquierda, pero las boletas lo imprimen con ellos
+// y el OCR lo devuelve tal cual. Sin este recorte, la consulta da "no existe" para comprobantes
+// perfectamente válidos, que es el peor resultado posible: parece fraude y no lo es.
+export function partirComprobante(numeroComprobante?: string | null): { serie: string; numero: string } | null {
+  const limpio = numeroComprobante?.trim().toUpperCase().replace(/\s+/g, "");
+  if (!limpio) return null;
+
+  const partes = limpio.split("-");
+  if (partes.length !== 2) return null;
+
+  const [serie, correlativo] = partes;
+  if (!/^[A-Z0-9]{4}$/.test(serie)) return null;
+  if (!/^\d+$/.test(correlativo)) return null;
+
+  const numero = correlativo.replace(/^0+/, "") || "0";
+  return { serie, numero };
+}

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { db } from "../db.js";
-import { validarRuc } from "../whatsapp/sunat.js";
+import { validarRuc, validarComprobante } from "../whatsapp/sunat.js";
 import { inferirTipoComprobante, calcularIgv } from "./comprobante.js";
 
 // Único lugar donde nace un gasto. Lo usan el panel web y el bot de WhatsApp: si la
@@ -83,7 +83,25 @@ export async function crearGasto(usuario: UsuarioGasto, datos: DatosGasto): Prom
   const tipoComprobante = inferirTipoComprobante(datos.numeroComprobante);
   const igv = calcularIgv(datos.monto, tipoComprobante, datos.igvLeido);
 
-  const sunat = datos.rucEmisor ? await validarRuc(datos.rucEmisor) : { disponible: false, activo: false };
+  // Dos verificaciones distintas y complementarias: el RUC dice que el proveedor existe y está
+  // activo; el comprobante dice que ESTA boleta existe de verdad y no está anulada. Con solo la
+  // primera, una factura inventada con el RUC de un proveedor real pasaba sin levantar nada.
+  const [sunat, comprobante] = await Promise.all([
+    datos.rucEmisor ? validarRuc(datos.rucEmisor) : Promise.resolve({ disponible: false, activo: false }),
+    validarComprobante({
+      rucEmisor: datos.rucEmisor,
+      tipoComprobante,
+      numeroComprobante: datos.numeroComprobante,
+      fecha: datos.fecha,
+      monto: datos.monto,
+    }),
+  ]);
+
+  // Solo pasa derecho lo que está verificado y sin sospechas. Cualquier duda —el validador no
+  // respondió, SUNAT no reconoce el comprobante, hay otro igual el mismo día— va a que lo mire
+  // una persona. Nada se rechaza solo: una API caída no es prueba de fraude.
+  const verificado = sunat.disponible && comprobante.disponible && !comprobante.observacion;
+  const estado = verificado && !sospechoso ? "pendiente" : "pendiente_validacion";
 
   // El índice único de (empresa, ruc, comprobante) es la red de seguridad de la comprobación de
   // arriba: dos subidas simultáneas de la misma boleta pasan las dos por el findFirst, y es la
@@ -107,8 +125,9 @@ export async function crearGasto(usuario: UsuarioGasto, datos: DatosGasto): Prom
         imagenHash: datos.imagenHash,
         // Un validador que no responde no es prueba de una boleta mala: queda pendiente de
         // validación para que la revise una persona, nunca rechazada de forma automática.
-        estado: sunat.disponible && !sospechoso ? "pendiente" : "pendiente_validacion",
-        validadoSunat: sunat.disponible ? Boolean(sunat.activo) : false,
+        estado,
+        validadoSunat: verificado && Boolean(sunat.activo),
+        observacionSunat: comprobante.observacion ?? null,
       },
     });
   } catch (err) {

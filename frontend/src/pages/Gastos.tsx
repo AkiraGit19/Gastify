@@ -309,6 +309,7 @@ export function Gastos() {
                   <td className="py-3 pr-4">
                     <StatusPill estado={g.estado} />
                     {g.motivoAnulacion && <span className="block text-xs text-muted">{g.motivoAnulacion}</span>}
+                    {g.observacionSunat && <span className="block text-xs text-stamp-rechazado">{g.observacionSunat}</span>}
                   </td>
                   <td className="py-3 pr-4 font-medium tabular-nums text-ink">S/ {Number(g.monto).toFixed(2)}</td>
                   <td className="py-3 pr-4 text-muted">{relativeDate(g.fechaGasto)}</td>
