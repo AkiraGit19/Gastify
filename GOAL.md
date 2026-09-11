@@ -119,10 +119,24 @@ inesperado en **cualquier** endpoint dejaba sin backend a todos los clientes a l
 al editar un gasto hacia un comprobante ya existente. Resuelto en `src/async-router.ts` más un
 middleware de errores en `index.ts`.
 
+## Bloque D — Operación (hecho)
+
+- [x] **Monitoreo.** Los errores del backend se guardan en la base y salen en el panel de super
+      admin, agrupados por huella con contador. Sin cuentas externas ni claves: funciona desde el
+      primer despliegue. El punto de captura está centralizado en el middleware de errores, así
+      que cambiarlo por Sentry más adelante es tocar una línea.
+- [x] **Filtros en el servidor.** `GET /gastos?estado=a,b` filtra en la base. Aprobaciones ya no
+      se baja la tabla entera de la empresa para mostrar doce filas. Los estados se validan contra
+      el enum: antes un valor inventado en la URL reventaba la consulta.
+
+### Bugs encontrados de paso
+
+Crear un usuario con un correo repetido, o una empresa con un RUC repetido, devolvían "ocurrió un
+error inesperado". Son errores de quien carga los datos, no del sistema: ahora dicen qué corregir.
+Aparecieron justamente al probar el monitoreo.
+
 ## Lo que sigue faltando para vender
 
 - La exactitud del OCR sigue sin validar contra boletas reales (falta la API key).
 - Sin cobro: el primer cliente se factura a mano.
-- Sin monitoreo de errores en producción; los logs de Render no los mira nadie.
-- `Aprobaciones` descarga todos los gastos y filtra en el navegador.
-- Ícono de iOS: falta un PNG de 180x180.
+- Ícono de iOS: falta un PNG de 180x180 exportado del logo.

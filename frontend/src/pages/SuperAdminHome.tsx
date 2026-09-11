@@ -1,9 +1,18 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, TriangleAlert, X } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { CountUp } from "../components/CountUp";
 import { Modal } from "../components/Modal";
 import { relativeDate } from "../lib/format";
+
+interface ErrorRegistrado {
+  id: string;
+  mensaje: string;
+  ruta: string;
+  metodo: string;
+  conteo: number;
+  ultimaVez: string;
+}
 
 interface Administrador {
   id: string;
@@ -28,6 +37,19 @@ export function SuperAdminHome() {
   const [admins, setAdmins] = useState<Administrador[] | null>(null);
   const [link, setLink] = useState("");
   const [copiado, setCopiado] = useState(false);
+  const [errores, setErrores] = useState<ErrorRegistrado[]>([]);
+
+  // Los errores del backend se muestran acá porque es la pantalla que el dueño de la plataforma
+  // abre igual. Un panel de monitoreo aparte es un panel que nadie visita, y entonces uno se
+  // entera de las caídas porque llama un cliente.
+  useEffect(() => {
+    api.get<ErrorRegistrado[]>("/monitoreo/errores").then(setErrores).catch(() => setErrores([]));
+  }, []);
+
+  async function descartar(id: string) {
+    setErrores((prev) => prev.filter((e) => e.id !== id));
+    await api.del(`/monitoreo/errores/${id}`).catch(() => {});
+  }
 
   // El admin de una empresa que pierde su contraseña no tenía forma de volver a entrar: el router
   // de /usuarios está limitado al rol admin y con alcance a su propia empresa, así que ni el
@@ -145,6 +167,32 @@ export function SuperAdminHome() {
             </button>
           </form>
         </Modal>
+      )}
+
+      {errores.length > 0 && (
+        <div className="mt-6 rounded-md border border-stamp-rechazado/25 bg-stamp-rechazado/[0.03] p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <TriangleAlert size={16} className="text-stamp-rechazado" />
+            <h2 className="text-sm font-semibold text-ink">Errores del backend</h2>
+            <span className="text-xs text-muted">últimos {errores.length}</span>
+          </div>
+          <ul className="flex flex-col gap-2">
+            {errores.map((e) => (
+              <li key={e.id} className="flex items-start justify-between gap-3 border-b border-ink/6 pb-2 last:border-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-ink">{e.mensaje}</p>
+                  <p className="text-xs text-muted">
+                    {e.metodo} {e.ruta} · {e.conteo > 1 ? `${e.conteo} veces · ` : ""}
+                    {relativeDate(e.ultimaVez)}
+                  </p>
+                </div>
+                <button onClick={() => descartar(e.id)} className="shrink-0 p-1 text-muted hover:text-ink" aria-label="Descartar">
+                  <X size={14} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {accesoDe && (

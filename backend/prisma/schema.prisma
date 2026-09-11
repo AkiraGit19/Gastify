@@ -151,3 +151,30 @@ model ConversacionWA {
   datos         Json
   actualizadoEn DateTime @updatedAt
 }
+
+// Registro de errores del backend.
+//
+// Se guarda en la propia base y no en un servicio externo a propósito: así el monitoreo funciona
+// desde el primer despliegue, sin cuentas que crear ni claves que configurar. Un panel que exige
+// setup es un panel que nadie enciende, y entonces uno se entera de las caídas porque llama un
+// cliente.
+//
+// ponytail: sirve para uno o tres clientes. Cuando haga falta alertar por correo en vez de
+// mirar una pantalla, el reemplazo natural es Sentry — el punto de captura ya está centralizado
+// en el middleware de errores de index.ts.
+model ErrorRegistrado {
+  id      String  @id @default(cuid())
+  // SHA-256 de mensaje+ruta+método: agrupa el mismo fallo repetido en una fila con un contador,
+  // en vez de llenar la tabla con diez mil copias durante una caída.
+  huella  String  @unique
+  mensaje String
+  ruta    String
+  metodo  String
+  stack   String?
+  conteo  Int     @default(1)
+
+  primeraVez DateTime @default(now())
+  ultimaVez  DateTime @default(now())
+
+  @@index([ultimaVez])
+}

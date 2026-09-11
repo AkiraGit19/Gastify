@@ -13,11 +13,13 @@ export function Aprobaciones() {
   const [editando, setEditando] = useState<Gasto | null>(null);
 
   function load() {
-    // Include pendiente_validacion too: SUNAT being unreachable must never block a human decision
-    // (spec section 4.3) — without this, a gasto that never validates could never be approved.
-    api.get<Gasto[]>("/gastos").then((all) =>
-      setGastos(all.filter((g) => g.estado === "pendiente" || g.estado === "pendiente_validacion")),
-    );
+    // Se incluye pendiente_validacion: que SUNAT no responda nunca debe bloquear una decisión
+    // humana (spec 4.3) — sin esto, un gasto que jamás valida tampoco se podría aprobar.
+    //
+    // El filtro lo aplica el servidor. Antes esta pantalla se bajaba TODOS los gastos de la
+    // empresa para quedarse con los pendientes: con unos miles, el celular del aprobador
+    // descargaba megabytes para mostrar doce filas.
+    api.get<Gasto[]>("/gastos?estado=pendiente,pendiente_validacion").then(setGastos);
   }
 
   useEffect(load, []);

@@ -111,11 +111,23 @@ usuariosRouter.post("/", async (req, res) => {
   // Sin contraseña se guarda el hash de un valor aleatorio que nadie conoce: la cuenta existe,
   // pero no hay nada que se pueda tipear para entrar hasta que se use el link de invitación.
   const passwordHash = await hashPassword(password ?? crypto.randomBytes(32).toString("hex"));
-  const usuario = await db.usuario.create({
-    data: { ...rest, empresaId, passwordHash },
-    select: SELECT_PUBLICO,
-  });
-  res.status(201).json(usuario);
+  try {
+    const usuario = await db.usuario.create({
+      data: { ...rest, empresaId, passwordHash },
+      select: SELECT_PUBLICO,
+    });
+    res.status(201).json(usuario);
+  } catch (err) {
+    // Repetir un correo o un teléfono es un error de quien carga, no del sistema. Sin esto el
+    // admin ve "ocurrió un error inesperado" y no tiene forma de saber qué corregir.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const campo = (err.meta?.target as string[] | undefined)?.includes("telefonoWhatsapp")
+        ? "Ese número de WhatsApp ya está registrado"
+        : "Ese correo ya está registrado";
+      return res.status(409).json({ error: campo });
+    }
+    throw err;
+  }
 });
 
 const updateSchema = z.object({

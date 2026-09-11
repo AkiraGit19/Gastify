@@ -77,6 +77,13 @@ npx tsx src/verificar-e2e.ts        # extremo a extremo contra servidor y base v
 
 El e2e es repetible: cada corrida usa correos y bytes de imagen distintos, y borra lo que creó.
 
+## Monitoreo
+
+Todo error que escape de un handler queda guardado en `ErrorRegistrado` y aparece en la pantalla
+del super admin, agrupado por huella con un contador. No hay nada que configurar. Si algún día
+hace falta que avise por correo en vez de esperar a que alguien mire, el punto de captura está en
+el middleware de errores de `src/index.ts`.
+
 ## Notas para Perú
 
 - **Solo las facturas dan crédito fiscal.** Las boletas de venta no. El tipo de comprobante se

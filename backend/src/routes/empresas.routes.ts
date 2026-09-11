@@ -1,4 +1,5 @@
 import { asyncRouter } from "../async-router.js";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "../db.js";
 import { requireAuth, requireRole, hashPassword } from "../auth.js";
@@ -31,18 +32,29 @@ empresasRouter.post("/", async (req, res) => {
   const { razonSocial, ruc, adminNombre, adminEmail, adminPassword } = parsed.data;
   const passwordHash = await hashPassword(adminPassword);
 
-  const empresa = await db.empresa.create({
-    data: {
-      razonSocial,
-      ruc,
-      usuarios: {
-        create: { nombre: adminNombre, email: adminEmail, rol: "admin", passwordHash },
+  try {
+    const empresa = await db.empresa.create({
+      data: {
+        razonSocial,
+        ruc,
+        usuarios: {
+          create: { nombre: adminNombre, email: adminEmail, rol: "admin", passwordHash },
+        },
       },
-    },
-    include: { usuarios: { select: { id: true, nombre: true, email: true, rol: true } } },
-  });
-
-  res.status(201).json(empresa);
+      include: { usuarios: { select: { id: true, nombre: true, email: true, rol: true } } },
+    });
+    res.status(201).json(empresa);
+  } catch (err) {
+    // Dar de alta una empresa dos veces, o con el correo de un admin que ya existe, es lo más
+    // normal del mundo al vender. Merece un mensaje, no un 500.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const repetido = (err.meta?.target as string[] | undefined)?.includes("ruc")
+        ? "Ya hay una empresa registrada con ese RUC"
+        : "Ese correo ya está en uso por otro usuario";
+      return res.status(409).json({ error: repetido });
+    }
+    throw err;
+  }
 });
 
 // Sin esto, un admin de empresa que olvida su contraseña queda fuera para siempre: el router de

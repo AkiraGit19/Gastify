@@ -235,12 +235,60 @@ await db.edicionGasto.deleteMany({ where: { gastoId: { in: gastosPrueba.map((g) 
 await db.aprobacion.deleteMany({ where: { gastoId: { in: gastosPrueba.map((g) => g.id) } } });
 await db.gasto.deleteMany({ where: { usuarioId: { in: ids } } });
 await db.usuario.deleteMany({ where: { id: { in: ids } } });
+const empresasPrueba = await db.empresa.findMany({ where: { razonSocial: "X", ruc: "20512345678" }, select: { id: true } });
+for (const e of empresasPrueba) {
+  await db.usuario.deleteMany({ where: { empresaId: e.id } });
+  await db.empresa.delete({ where: { id: e.id } });
+}
 for (const g of gastosPrueba) {
   const local = g.imagenUrl.split("/uploads/")[1];
   if (local) fs.rmSync(path.join(BACKEND, "uploads", local), { force: true });
 }
 await db.$disconnect();
 console.log(`  ✓ borrados ${gastosPrueba.length} gastos y ${ids.length} usuarios de prueba`);
+
+// ---------------------------------------------------------------- filtros y monitoreo
+seccion("Filtros del servidor");
+// La pantalla de aprobaciones ya no se baja todos los gastos para filtrarlos en el navegador.
+const pendientes = await j("/gastos?estado=pendiente,pendiente_validacion", {}, admin);
+check("se pueden pedir varios estados a la vez", pendientes.status === 200 && pendientes.body.every((g: any) => ["pendiente", "pendiente_validacion"].includes(g.estado)), pendientes.body.map?.((g: any) => g.estado));
+
+const unoSolo = await j("/gastos?estado=aprobado", {}, admin);
+check("y un estado suelto sigue funcionando", unoSolo.status === 200 && unoSolo.body.every((g: any) => g.estado === "aprobado"));
+
+// Antes el valor iba crudo a Prisma y un estado inventado reventaba la consulta.
+const inventado = await j("/gastos?estado=inventado", {}, admin);
+check("un estado inexistente da 400, no un 500", inventado.status === 400, inventado.body);
+const mezcla = await j("/gastos?estado=pendiente,inventado", {}, admin);
+check("y basta uno malo en la lista para rechazarla", mezcla.status === 400, mezcla.body);
+
+seccion("Monitoreo");
+const dupEmail = `e2e-dup-${SUFIJO}@t.test`;
+await post("/usuarios", { nombre: "Dup", email: dupEmail, rol: "empleado" }, admin);
+const repetido = await post("/usuarios", { nombre: "Dup", email: dupEmail, rol: "empleado" }, admin);
+check("un correo repetido explica el problema en vez de dar 500", repetido.status === 409, repetido.body);
+
+const empresaRepetida = await post("/empresas", { razonSocial: "X", ruc: "20512345678", adminNombre: "A", adminEmail: `e2e-adm-${SUFIJO}@t.test`, adminPassword: "clave-larga-1" }, owner);
+const empresaOtraVez = await post("/empresas", { razonSocial: "X", ruc: "20512345678", adminNombre: "A", adminEmail: `e2e-adm2-${SUFIJO}@t.test`, adminPassword: "clave-larga-1" }, owner);
+check("un RUC de empresa repetido también", empresaOtraVez.status === 409, empresaOtraVez.body);
+
+const erroresComoAdmin = await j("/monitoreo/errores", {}, admin);
+check("un admin de empresa no ve los errores de la plataforma", erroresComoAdmin.status === 403, erroresComoAdmin.status);
+const erroresSinSesion = await j("/monitoreo/errores");
+check("ni nadie sin sesión", erroresSinSesion.status === 401);
+const erroresComoOwner = await j("/monitoreo/errores", {}, owner);
+check("el dueño de la plataforma sí", erroresComoOwner.status === 200 && Array.isArray(erroresComoOwner.body), erroresComoOwner.status);
+
+// El registro agrupa por huella: el mismo fallo repetido suma al contador en vez de crear filas.
+const { registrarError } = await import("./monitoreo.js");
+const { db: dbErr } = await import("./db.js");
+const rutaPrueba = `/prueba-${SUFIJO}`;
+await registrarError(new Error("fallo de prueba"), rutaPrueba, "GET");
+await registrarError(new Error("fallo de prueba"), rutaPrueba, "GET");
+await registrarError(new Error("otro fallo"), rutaPrueba, "GET");
+const guardados = await dbErr.errorRegistrado.findMany({ where: { ruta: rutaPrueba } });
+check("el mismo error dos veces es una fila con contador 2", guardados.length === 2 && guardados.some((e) => e.conteo === 2), guardados.map((e) => e.conteo));
+await dbErr.errorRegistrado.deleteMany({ where: { ruta: rutaPrueba } });
 
 // ---------------------------------------------------------------- WhatsApp
 // El bot comparte la creación de gastos con el panel (gastos/crear.ts). Sin esta regresión, un

@@ -134,9 +134,26 @@ gastosRouter.post("/borrador", async (req, res) => {
   res.status(201).json(respuestaRegistrado(resultado));
 });
 
+const ESTADOS = ["pendiente", "pendiente_validacion", "aprobado", "pagado", "rechazado", "anulado"] as const;
+const CATEGORIAS = ["movilidad", "alimentacion", "hospedaje", "otros"] as const;
+
+// `estado` acepta varios separados por coma. La pantalla de aprobaciones necesita `pendiente` y
+// `pendiente_validacion` a la vez, y hasta ahora resolvía eso bajándose la tabla entera de la
+// empresa para filtrarla en el navegador: con unos miles de gastos, el celular de un aprobador
+// descarga megabytes para mostrar doce filas.
+//
+// Los valores se validan contra el enum en vez de pasarlos crudos a Prisma: un estado inventado
+// en la URL hacía fallar la consulta entera.
+const listaSeparadaPorComas = <T extends readonly [string, ...string[]]>(valores: T) =>
+  z
+    .string()
+    .optional()
+    .transform((v) => (v ? v.split(",").map((x) => x.trim()).filter(Boolean) : undefined))
+    .pipe(z.array(z.enum(valores)).nonempty().optional());
+
 const listQuerySchema = z.object({
-  estado: z.string().optional(),
-  categoria: z.string().optional(),
+  estado: listaSeparadaPorComas(ESTADOS),
+  categoria: listaSeparadaPorComas(CATEGORIAS),
   usuarioId: z.string().optional(),
   desde: z.string().optional(),
   hasta: z.string().optional(),
@@ -149,8 +166,8 @@ function scopedWhere(user: NonNullable<Express.Request["user"]>, query: z.infer<
   if (user.rol === "empleado") where.usuarioId = user.id;
   if (user.rol === "aprobador") where.usuario = { aprobadorId: user.id };
   if (query.usuarioId && user.rol === "admin") where.usuarioId = query.usuarioId;
-  if (query.estado) where.estado = query.estado;
-  if (query.categoria) where.categoria = query.categoria;
+  if (query.estado) where.estado = { in: query.estado };
+  if (query.categoria) where.categoria = { in: query.categoria };
   if (query.desde || query.hasta) {
     where.fechaGasto = {
       ...(query.desde ? { gte: new Date(query.desde) } : {}),
