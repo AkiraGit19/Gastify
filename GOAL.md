@@ -139,4 +139,7 @@ Aparecieron justamente al probar el monitoreo.
 
 - La exactitud del OCR sigue sin validar contra boletas reales (falta la API key).
 - Sin cobro: el primer cliente se factura a mano.
-- Ícono de iOS: falta un PNG de 180x180 exportado del logo.
+
+Los íconos de la pantalla de inicio (180/192/512) ya están: se generan del propio favicon.svg
+con Chrome headless sobre fondo blanco, porque iOS ignora los SVG y pinta de negro lo transparente.
+
