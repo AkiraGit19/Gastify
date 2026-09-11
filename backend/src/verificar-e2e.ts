@@ -6,6 +6,7 @@
 // Es repetible: cada corrida usa correos y bytes de imagen distintos, y borra lo que creó. Sin
 // credenciales de OCR toda subida cae al paso "falta el monto", lo que la vuelve determinista
 // y gratis. Complementa a verificar.ts, que prueba la lógica pura sin red ni base de datos.
+import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -21,6 +22,36 @@ function check(nombre: string, ok: boolean, detalle: unknown = "") {
   if (!ok) fallos++;
 }
 function seccion(t: string) { console.log(`\n${t}`); }
+
+// Cuenta lo que hay guardado, sea en Supabase o en el disco de desarrollo.
+async function contarArchivos(): Promise<number> {
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
+  if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    const r = await fetch(`${SUPABASE_URL}/storage/v1/object/list/boletas`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ prefix: "", limit: 1000 }),
+    });
+    return ((await r.json()) as unknown[]).length;
+  }
+  const dir = path.join(BACKEND, "uploads");
+  return fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
+}
+
+async function borrarImagen(imagenUrl: string) {
+  const local = imagenUrl.split("/uploads/")[1];
+  if (local) {
+    fs.rmSync(path.join(BACKEND, "uploads", local), { force: true });
+    return;
+  }
+  const nombre = imagenUrl.split("/boletas/")[1];
+  if (nombre && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    await fetch(`${process.env.SUPABASE_URL}/storage/v1/object/boletas/${nombre}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+    });
+  }
+}
 
 async function j(path: string, opts: RequestInit = {}, token?: string) {
   const res = await fetch(API + path, {
@@ -82,6 +113,14 @@ check("primer gasto se registra", g1.status === 201, g1.body);
 
 const g1bis = await crearGasto(tEmp, 0, 250);
 check("la MISMA foto se rechaza aunque el monto sea otro", g1bis.status === 409, g1bis.body);
+
+// La imagen se sube ANTES de saber que el comprobante está duplicado, así que un rechazo tiene
+// que llevarse su archivo. Sin esto, cada intento repetido deja basura en el almacenamiento del
+// cliente, que además la paga.
+const huerfanas = await contarArchivos();
+const g1ter = await crearGasto(tEmp, 0, 300);
+check("un tercer intento también se rechaza", g1ter.status === 409, g1ter.body);
+check("y el rechazo no deja la foto huérfana en el almacenamiento", (await contarArchivos()) === huerfanas, `antes ${huerfanas}, después ${await contarArchivos()}`);
 
 const g2 = await crearGasto(tEmp, 1, 118);
 const detalle2 = await j(`/gastos/${g2.body.gastoId}`, {}, tEmp);
@@ -240,9 +279,10 @@ for (const e of empresasPrueba) {
   await db.usuario.deleteMany({ where: { empresaId: e.id } });
   await db.empresa.delete({ where: { id: e.id } });
 }
+// Con Supabase configurado las fotos de prueba van al bucket real, así que hay que borrarlas
+// de ahí también: si no, cada corrida deja basura en el almacenamiento de producción.
 for (const g of gastosPrueba) {
-  const local = g.imagenUrl.split("/uploads/")[1];
-  if (local) fs.rmSync(path.join(BACKEND, "uploads", local), { force: true });
+  await borrarImagen(g.imagenUrl);
 }
 await db.$disconnect();
 console.log(`  ✓ borrados ${gastosPrueba.length} gastos y ${ids.length} usuarios de prueba`);
@@ -340,7 +380,7 @@ if (gastoWa) await dbWa.gasto.delete({ where: { id: gastoWa.id } });
 await dbWa.conversacionWA.deleteMany({ where: { usuarioId: usuarioWa.id } });
 await dbWa.usuario.delete({ where: { id: usuarioWa.id } });
 fs.rmSync(`${MEDIA_DIR}/wa-${SUF}.jpg`, { force: true });
-if (gastoWa?.imagenUrl.includes("/uploads/")) fs.rmSync(path.join(BACKEND, "uploads", gastoWa.imagenUrl.split("/uploads/")[1]), { force: true });
+if (gastoWa) await borrarImagen(gastoWa.imagenUrl);
 await dbWa.$disconnect();
 
 console.log(fallos === 0 ? "\nTODO OK" : `\n${fallos} FALLARON`);

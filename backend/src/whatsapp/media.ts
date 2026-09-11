@@ -78,3 +78,26 @@ export async function storeReceiptImage(buffer: Buffer): Promise<string> {
   await fs.writeFile(path.join(UPLOADS_DIR, filename), buffer);
   return `${PUBLIC_BASE_URL}/uploads/${filename}`;
 }
+
+// Borra una imagen ya guardada. Se usa cuando el gasto no llegó a crearse: la foto se sube antes
+// de saber si el comprobante está duplicado, así que sin esto cada intento rechazado dejaría un
+// archivo que nadie referencia, ocupando espacio del cliente para siempre.
+//
+// Nunca lanza: si la foto no se pudo borrar, el problema es un archivo de más, y hacer fallar por
+// eso una petición que ya se resolvió sería cambiar un desperdicio por un error de cara al usuario.
+export async function deleteReceiptImage(imagenUrl: string): Promise<void> {
+  try {
+    const nombre = imagenUrl.split(`/${SUPABASE_BUCKET}/`)[1];
+    if (nombre && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      await fetch(`${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${nombre}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+      });
+      return;
+    }
+    const local = imagenUrl.split("/uploads/")[1];
+    if (local) await fs.rm(path.join(UPLOADS_DIR, local), { force: true });
+  } catch (err) {
+    console.error("[storage] no se pudo borrar una imagen huérfana:", err);
+  }
+}

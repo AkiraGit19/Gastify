@@ -1,7 +1,7 @@
 import { db } from "../db.js";
 import { readReceipt } from "./ocr.js";
 import { crearGasto, parseFecha, hashImagen } from "../gastos/crear.js";
-import { downloadWhatsAppMedia, storeReceiptImage } from "./media.js";
+import { downloadWhatsAppMedia, storeReceiptImage, deleteReceiptImage } from "./media.js";
 import { sendText, sendButtons } from "./send.js";
 
 const CATEGORIAS = ["movilidad", "alimentacion", "hospedaje", "otros"] as const;
@@ -198,6 +198,9 @@ async function finalizeGasto(usuario: { id: string; empresaId: string | null; ap
   await db.conversacionWA.delete({ where: { usuarioId: usuario.id } });
 
   if (!resultado.ok) {
+    // Igual que en el panel: la foto se guardó al abrir la conversación, mucho antes de saber si
+    // el comprobante estaba repetido. Sin esto queda un archivo que nadie referencia.
+    if (draft.imagenUrl) await deleteReceiptImage(draft.imagenUrl);
     await sendText(phone, `${resultado.detalle} No se creó un gasto nuevo.`);
     return;
   }

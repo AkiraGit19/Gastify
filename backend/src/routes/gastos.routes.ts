@@ -6,7 +6,7 @@ import { db } from "../db.js";
 import { requireAuth, signPayload, verifyPayload } from "../auth.js";
 import { toCsv } from "../csv.js";
 import { readReceipt } from "../whatsapp/ocr.js";
-import { storeReceiptImage } from "../whatsapp/media.js";
+import { storeReceiptImage, deleteReceiptImage } from "../whatsapp/media.js";
 import { crearGasto, parseFecha, hashImagen, type UsuarioGasto } from "../gastos/crear.js";
 import { inferirTipoComprobante, igvTrasEdicion } from "../gastos/comprobante.js";
 
@@ -87,7 +87,12 @@ gastosRouter.post("/", upload.single("foto"), async (req, res) => {
     categoria: CATEGORIA_POR_DEFECTO,
   });
 
-  if (!resultado.ok) return res.status(409).json({ estado: "duplicado", error: resultado.detalle });
+  if (!resultado.ok) {
+    // La foto se subió antes de saber que el comprobante estaba repetido. Si no se borra acá,
+    // cada intento rechazado deja un archivo huérfano en el almacenamiento del cliente.
+    await deleteReceiptImage(imagenUrl);
+    return res.status(409).json({ estado: "duplicado", error: resultado.detalle });
+  }
   res.status(201).json(respuestaRegistrado(resultado));
 });
 
@@ -130,7 +135,12 @@ gastosRouter.post("/borrador", async (req, res) => {
     categoria: CATEGORIA_POR_DEFECTO,
   });
 
-  if (!resultado.ok) return res.status(409).json({ estado: "duplicado", error: resultado.detalle });
+  if (!resultado.ok) {
+    // Misma razón que al subir: la imagen ya está guardada desde el primer paso, así que un
+    // comprobante repetido tiene que llevarse su archivo o queda huérfano.
+    await deleteReceiptImage(borrador.imagenUrl);
+    return res.status(409).json({ estado: "duplicado", error: resultado.detalle });
+  }
   res.status(201).json(respuestaRegistrado(resultado));
 });
 

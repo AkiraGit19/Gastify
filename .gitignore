@@ -11,3 +11,4 @@ backend/test-media/
 .vercel
 .env*
 .gstack/
+supabase/

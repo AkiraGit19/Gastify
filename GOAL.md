@@ -135,6 +135,22 @@ Crear un usuario con un correo repetido, o una empresa con un RUC repetido, devo
 error inesperado". Son errores de quien carga los datos, no del sistema: ahora dicen qué corregir.
 Aparecieron justamente al probar el monitoreo.
 
+## Storage (hecho)
+
+Supabase Storage quedó conectado al proyecto **Gastify** (`xytexrdqwaldxhtqjchy`), bucket
+`boletas` público. Verificado de punta a punta: una boleta subida por la app llega al bucket y se
+descarga desde su URL pública con los mismos bytes.
+
+Bug encontrado al conectarlo: la imagen se sube **antes** de comprobar si el comprobante está
+duplicado, así que cada intento rechazado dejaba un archivo que nadie referenciaba, ocupando
+espacio que paga el cliente. Ahora el rechazo se lleva su archivo, en el panel y en WhatsApp, y el
+e2e cuenta los archivos antes y después para que no vuelva a colarse.
+
+Queda una fuente menor de huérfanos sin resolver: si un empleado sube la foto, el sistema le pide
+el monto y cierra la app sin responder, esa imagen queda guardada sin gasto. El borrador vence a
+los 30 minutos pero el archivo no se borra solo. Con OCR funcionando ese camino es poco frecuente;
+si acumula, la solución es un barrido periódico de imágenes sin gasto asociado.
+
 ## Lo que sigue faltando para vender
 
 - La exactitud del OCR sigue sin validar contra boletas reales (falta la API key).
