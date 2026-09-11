@@ -170,9 +170,16 @@ Auditadas, no hay nada que arreglar. El subtotal se deriva como total − IGV en
 por separado, así que las columnas del CSV siempre suman exacto. Comprobado con 300 facturas:
 descuadre de 0.00.
 
+## Verificado contra la API real
+
+SUNAT_VALIDATION_API_KEY configurada y probada en vivo: la consulta de RUC devuelve la razón
+social correcta, un comprobante inventado vuelve como NO EXISTE, y el gasto que lo lleva queda
+observado y en revisión humana en vez de pasar derecho. Los casos sin RUC, sin número o de tipo
+no consultable no gastan llamada.
+
 ## Lo que sigue faltando para vender
 
-- La exactitud del OCR sigue sin validar contra boletas reales (falta la API key).
+- La exactitud del OCR sigue sin validar contra boletas reales (falta la API key de Anthropic).
 - Sin cobro: el primer cliente se factura a mano.
 
 Los íconos de la pantalla de inicio (180/192/512) ya están: se generan del propio favicon.svg

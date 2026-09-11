@@ -348,25 +348,49 @@ const usuarioWa = await dbWa.usuario.create({
   data: { empresaId: empresaWa.id, nombre: `WA ${SUF}`, email: `e2e-wa-${SUF}@t.test`, rol: "empleado", telefonoWhatsapp: tel, passwordHash: "x" },
 });
 
-async function enviarWa(mensaje: unknown) {
+// El webhook responde 200 al instante y procesa después, así que hay que esperar al EFECTO, no
+// a un reloj. Con un sleep fijo la prueba se rompía en cuanto el trabajo de fondo creció —pasó
+// al agregar las consultas a SUNAT— y el fallo parecía del bot, no del cronómetro.
+async function esperarA(condicion: () => Promise<boolean>, segundos = 25): Promise<boolean> {
+  const limite = Date.now() + segundos * 1000;
+  while (Date.now() < limite) {
+    if (await condicion()) return true;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return false;
+}
+
+async function enviarWa(mensaje: unknown, hasta?: () => Promise<boolean>) {
   await fetch(`${API}/whatsapp/webhook`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ entry: [{ changes: [{ value: { messages: [mensaje] } }] }] }),
   });
-  // El webhook responde 200 de inmediato y procesa después, así que hay que esperar al efecto.
-  await new Promise((r) => setTimeout(r, 900));
+  if (hasta) await esperarA(hasta);
+  else await new Promise((r) => setTimeout(r, 250));
 }
 
-await enviarWa({ from: tel, type: "image", image: { id: `wa-${SUF}.jpg` } });
-check("la foto abre una conversación", Boolean(await dbWa.conversacionWA.findUnique({ where: { usuarioId: usuarioWa.id } })));
+const conversacionAbierta = () => dbWa.conversacionWA.findUnique({ where: { usuarioId: usuarioWa.id } }).then(Boolean);
+await enviarWa({ from: tel, type: "image", image: { id: `wa-${SUF}.jpg` } }, conversacionAbierta);
+check("la foto abre una conversación", await conversacionAbierta());
 
 // Sin OCR configurado el bot pide cada campo a mano, que es el mismo camino de una boleta ilegible.
+// Cada respuesta avanza un paso de la conversación; se espera a que el paso cambie en la base.
+let pasoPrevio = (await dbWa.conversacionWA.findUnique({ where: { usuarioId: usuarioWa.id } }))?.datos;
 for (const valor of ["118", "12/03/2026", "TAMBO SAC", "20512345678", "F001-500"]) {
-  await enviarWa({ from: tel, type: "text", text: { body: valor } });
+  await enviarWa({ from: tel, type: "text", text: { body: valor } }, async () => {
+    const c = await dbWa.conversacionWA.findUnique({ where: { usuarioId: usuarioWa.id } });
+    const cambio = JSON.stringify(c?.datos) !== JSON.stringify(pasoPrevio);
+    if (cambio) pasoPrevio = c?.datos;
+    return cambio;
+  });
 }
-await enviarWa({ from: tel, type: "interactive", interactive: { button_reply: { id: "confirmar" } } });
-await enviarWa({ from: tel, type: "interactive", interactive: { button_reply: { id: "alimentacion" } } });
+await enviarWa({ from: tel, type: "interactive", interactive: { button_reply: { id: "confirmar" } } }, async () =>
+  (await dbWa.conversacionWA.findUnique({ where: { usuarioId: usuarioWa.id } }))?.paso === "esperando_categoria");
+
+// El último paso consulta SUNAT dos veces, así que puede tardar varios segundos.
+await enviarWa({ from: tel, type: "interactive", interactive: { button_reply: { id: "alimentacion" } } }, () =>
+  dbWa.gasto.findFirst({ where: { usuarioId: usuarioWa.id } }).then(Boolean));
 
 const gastoWa = await dbWa.gasto.findFirst({ where: { usuarioId: usuarioWa.id } });
 check("el bot sigue creando gastos tras el refactor", Boolean(gastoWa), gastoWa);
@@ -375,6 +399,16 @@ check("y la categoría que eligió", gastoWa?.categoria === "alimentacion", gast
 check("clasifica F001 como factura", gastoWa?.tipoComprobante === "factura", gastoWa?.tipoComprobante);
 check("y le calcula el IGV", Number(gastoWa?.igv) === 18, gastoWa?.igv);
 check("guarda la huella de la imagen", Boolean(gastoWa?.imagenHash), gastoWa?.imagenHash);
+
+// El comprobante F001-500 del RUC de prueba no existe en SUNAT. Con la key configurada, eso tiene
+// que quedar anotado y el gasto irse a revisión humana — nunca aprobarse solo ni rechazarse solo.
+if (process.env.SUNAT_VALIDATION_API_KEY) {
+  check("un comprobante que SUNAT no reconoce queda observado", Boolean(gastoWa?.observacionSunat), gastoWa?.observacionSunat);
+  check("y el gasto va a revisión, no pasa derecho", gastoWa?.estado === "pendiente_validacion", gastoWa?.estado);
+  check("sin marcarlo como validado", gastoWa?.validadoSunat === false, gastoWa?.validadoSunat);
+} else {
+  console.log("  – sin SUNAT_VALIDATION_API_KEY: no se comprueba la verificación de comprobantes");
+}
 
 if (gastoWa) await dbWa.gasto.delete({ where: { id: gastoWa.id } });
 await dbWa.conversacionWA.deleteMany({ where: { usuarioId: usuarioWa.id } });

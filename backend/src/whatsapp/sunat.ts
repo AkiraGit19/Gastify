@@ -93,7 +93,13 @@ export async function validarComprobante(datos: DatosComprobante): Promise<Compr
 
     const estado = (json.data.comprobante_estado_descripcion ?? "").toUpperCase();
     if (estado === "ACEPTADO") return { disponible: true, estado, observacion: null };
-    return { disponible: true, estado, observacion: `SUNAT reporta el comprobante como ${estado}` };
+
+    // El texto lo lee quien aprueba, en medio de una fila de tabla: tiene que decir qué pasa sin
+    // que haya que traducir la jerga de SUNAT.
+    const explicacion = estado === "NO EXISTE"
+      ? "SUNAT no reconoce este comprobante"
+      : `SUNAT reporta este comprobante como ${estado}`;
+    return { disponible: true, estado, observacion: explicacion };
   } catch {
     return { disponible: false };
   }
